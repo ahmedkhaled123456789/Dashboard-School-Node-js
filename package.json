@@ -2,7 +2,7 @@
   "name": "school-management-system-api",
   "version": "1.0.0",
   "description": "school-management-system",
-  "main": "sever.js",
+  "main": "server.js",
   "scripts": {
     "start": "node server.js",
     "server": "nodemon server.js"

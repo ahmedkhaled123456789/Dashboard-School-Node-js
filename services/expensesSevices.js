@@ -35,7 +35,6 @@ exports.createExpenses = AysncHandler(async (req, res,next) => {
 //@route GET /api/v1/expenses
 //@acess  Private
 exports.getExpenses = AysncHandler(async (req, res, next) => {
-   
   res.status(200).json(res.results);
 
 });
