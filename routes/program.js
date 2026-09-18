@@ -1,5 +1,7 @@
 const express = require("express");
 const isAdmin = require("../middlewares/isAdmin");
+const isTeacher = require("../middlewares/isTeacher");
+const { isTeacherLogin } = require("../middlewares/isTeacherLogin");
 const Program = require("../models/Program");
 const advancedResults = require("../middlewares/advancedResults");
 const { isLogin } = require("../middlewares/isLogin");
@@ -10,8 +12,8 @@ const {
 const router = express.Router();
  router
   .route("/")
-  .post(isLogin, isAdmin, createProgram)
-  .get(isLogin, isAdmin,advancedResults(Program), getPrograms);
+  .post(isLogin,isAdmin, createProgram)
+  .get(advancedResults(Program), getPrograms);
  
 router
   .route("/:id")

@@ -9,6 +9,9 @@ const Admin = require("./models/Admin");
 const ClassLevel = require("./models/ClassLevel");
 const Exam = require("./models/Exam");
 const ExamResult = require("./models/ExamResults");
+const Expenses = require("./models/Expenses");
+const FeesGroup = require("./models/FeesGroup");
+const Parents = require("./models/Parents");
 const Program = require("./models/Program");
 const Question = require("./models/Questions");
 const Student = require("./models/Student");
@@ -28,6 +31,9 @@ async function main() {
       email: `admin${i + 1}@school.test`,
       password: seedPassword,
       role: "admin",
+      phone: `010000000${String(i + 1).padStart(2, "0")}`,
+      schoolName: "School Management Academy",
+      address: `${i + 1} Education Street, Cairo`,
     }))
   );
 
@@ -59,6 +65,7 @@ async function main() {
   const classLevelDocs = await ClassLevel.insertMany(
     Array.from({ length: 10 }, (_, i) => ({
       name: `Level ${i + 1}00`,
+      amount: 1500 + i * 250,
       description: `Class Level ${i + 1}00 for school-year academic grouping.`,
       createdBy: adminIds[i % adminIds.length],
       students: [],
@@ -84,6 +91,8 @@ async function main() {
   const subjectDocs = await Subject.insertMany(
     Array.from({ length: 10 }, (_, i) => ({
       name: `Subject ${i + 1}`,
+      day: ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"][i % 5],
+      classes: `Level ${(i % 4) + 1}00`,
       description: `Subject ${i + 1} explores core concepts and practical application relevant to the program.`,
       academicTerm: academicTermIds[i % academicTermIds.length],
       createdBy: adminIds[i % adminIds.length],
@@ -97,6 +106,10 @@ async function main() {
       name: `Teacher ${i + 1}`,
       email: `teacher${i + 1}@school.test`,
       password: seedPassword,
+      phone: `011000000${String(i + 1).padStart(2, "0")}`,
+      religion: i % 2 === 0 ? "Muslim" : "Christian",
+      address: `${i + 1} Teachers Avenue, Cairo`,
+      gender: i % 2 === 0 ? "Male" : "Female",
       dateEmployed: new Date(2020 + i, 0, 10),
       isWitdrawn: false,
       isSuspended: false,
@@ -134,6 +147,16 @@ async function main() {
       name: `Student ${i + 1}`,
       email: `student${i + 1}@school.test`,
       password: seedPassword,
+      phone: `012000000${String(i + 1).padStart(2, "0")}`,
+      religion: i % 2 === 0 ? "Muslim" : "Christian",
+      address: `${i + 1} Students Street, Cairo`,
+      fatherName: `Father of Student ${i + 1}`,
+      motherName: `Mother of Student ${i + 1}`,
+      fatherEmail: `father${i + 1}@school.test`,
+      gender: i % 2 === 0 ? "Male" : "Female",
+      dateOfBirth: new Date(2010 + (i % 3), i % 12, 1).toISOString().slice(0, 10),
+      fatherOccupation: i % 2 === 0 ? "Engineer" : "Teacher",
+      admissionDate: new Date(2024 + i, 0, 15).toISOString().slice(0, 10),
       role: "student",
       classLevels: [classLevelIds[i % classLevelIds.length]],
       currentClassLevel: classLevelIds[i % classLevelIds.length].toString(),
@@ -152,6 +175,43 @@ async function main() {
   );
   const studentIds = studentDocs.map(student => student._id);
   const studentIdStrings = studentDocs.map(student => student.studentId);
+
+  const parentDocs = await Parents.insertMany(
+    Array.from({ length: 10 }, (_, i) => ({
+      name: `Parent ${i + 1}`,
+      email: `parent${i + 1}@school.test`,
+      password: seedPassword,
+      phone: 201000000000 + i,
+      religion: i % 2 === 0 ? "Muslim" : "Christian",
+      occupation: i % 2 === 0 ? "Engineer" : "Teacher",
+      address: `${i + 1} School Street, Cairo`,
+      role: "parent",
+      student: [studentIds[i % studentIds.length]],
+    }))
+  );
+
+  const feesGroupDocs = await FeesGroup.insertMany(
+    Array.from({ length: 10 }, (_, i) => ({
+      name: `Level ${(i % 4) + 1}00 Fees ${i + 1}`,
+      description: `Fees group ${i + 1} for tuition and school services.`,
+      feesType: i % 2 === 0 ? "Tuition" : "Activities",
+      createdBy: adminIds[i % adminIds.length],
+      students: [studentIds[i % studentIds.length]],
+    }))
+  );
+
+  const expenseDocs = await Expenses.insertMany(
+    Array.from({ length: 10 }, (_, i) => ({
+      name: `School Expense ${i + 1}`,
+      expensesType: i % 2 === 0 ? "Maintenance" : "Supplies",
+      status: i % 3 !== 0,
+      phone: `010000000${String(i + 1).padStart(2, "0")}`,
+      amount: 500 + i * 250,
+      parentEmail: parentDocs[i % parentDocs.length].email,
+      createdBy: adminIds[i % adminIds.length],
+      date: new Date(2025, i % 12, i + 1).toISOString().slice(0, 10),
+    }))
+  );
 
   await Promise.all(
     programDocs.map((program, index) =>
@@ -256,6 +316,9 @@ async function main() {
     Iconclasslevels: classLevelDocs.length,
     examresults: examResultDocs.length,
     exams: examDocs.length,
+    expenses: expenseDocs.length,
+    feesgroups: feesGroupDocs.length,
+    parents: parentDocs.length,
     programs: programDocs.length,
     questions: questionDocs.length,
     studentssubjects: subjectDocs.length,

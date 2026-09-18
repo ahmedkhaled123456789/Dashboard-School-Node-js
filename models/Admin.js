@@ -11,7 +11,7 @@ const adminSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
-
+     image: String,
     city: {
       type: String,
      },

@@ -1,5 +1,7 @@
 const express = require("express");
 const isAdmin = require("../middlewares/isAdmin");
+const isTeacher = require("../middlewares/isTeacher");
+const { isTeacherLogin } = require("../middlewares/isTeacherLogin");
 const ClassLevel = require("../models/ClassLevel");
 const advancedResults = require("../middlewares/advancedResults");
 const { isLogin } = require("../middlewares/isLogin");
@@ -14,7 +16,7 @@ router.use("/:id/students", student);
  router
   .route("/")
   .post(isLogin, isAdmin, createClassLevel)
-  .get(isLogin, isAdmin,advancedResults(ClassLevel), getClassLevels);
+  .get(advancedResults(ClassLevel), getClassLevels);
  
 router
   .route("/:id")

@@ -9,6 +9,7 @@ const teacherSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
+      image: String,
     password: {
       type: String,
       required: true,

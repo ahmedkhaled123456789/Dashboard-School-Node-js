@@ -22,6 +22,13 @@ router.route("/login").post(loginParents);
 router.route("/admin").get(
   isLogin,
   isAdmin,
+  advancedResults(Parents),
+  getAllParentsAdmin
+);
+router.route("/adminparents").get(
+  isLogin,
+  isAdmin,
+  advancedResults(Parents),
   getAllParentsAdmin
 );
 router.route("/:parentID/admin").get(isLogin, isAdmin, getParentsByAdmin);

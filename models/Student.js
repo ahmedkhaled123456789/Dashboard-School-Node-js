@@ -13,6 +13,7 @@ const studentSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
+      image: String,
     phone: {
       type: String,
       required: true,

@@ -2,7 +2,6 @@
 
 const advancedResults = (model, populate) => {
   return async (req, res, next) => {  
-    console.log(req.res);
     let TeachersQuery = model.find();
     //convert query strings to number
     const page = Number(req.query.page) || 1;
