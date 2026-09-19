@@ -17,8 +17,7 @@ const router = express.Router();
 // routes
 
 //admin register
-router.post("/register", registerAdminServices, uploadAdminImage,
-    resizeImage);
+router.post("/register", uploadAdminImage, resizeImage, registerAdminServices);
   
 //login
 router.post("/login", loginAdminServices);

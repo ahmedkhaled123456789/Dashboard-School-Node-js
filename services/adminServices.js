@@ -5,31 +5,19 @@ const bcrypt = require("bcryptjs");
 
 const createToken = require("../utils/createToken");
 
-// eslint-disable-next-line import/no-extraneous-dependencies
-const sharp = require("sharp");
-// eslint-disable-next-line import/no-extraneous-dependencies
-const { v4: uuidv4 } = require("uuid");
- const { uploadSingleImage } = require("../middleWares/uploadImageMiddleWares");
+const {
+  uploadSingleImage,
+  resizeImage: resizeProfileImage,
+} = require("../middlewares/uploadImageMiddleWares");
 
  
 exports.uploadAdminImage = uploadSingleImage("image");
-
-exports.resizeImage = asyncHandler(async (req, res, next) => {
-  const fileName = `admin-${uuidv4()}-${Date.now()}.jpeg`;
-  await sharp(req.file.buffer)
-    .resize(600, 600)
-    .toFormat("jpeg")
-    .jpeg({ quality: 95 })
-    .toFile(`uploads/admins/${fileName}`);
-  req.body.image = fileName;
-  console.log(req.body.image);
-  next();
-});
+exports.resizeImage = resizeProfileImage("admins");
 // @desc     register admin
 // @route   POST /api/v1/admins/register
 // @access  private
 exports.registerAdminServices = asyncHandler(async (req, res, next) => {
-  const { name, email, password, phone, address, schoolName,city,lauguage } = req.body;
+  const { name, email, password, phone, address, schoolName,city,lauguage, image } = req.body;
 
   //Check if email exists
   const adminFound = await Admin.findOne({ email });
@@ -44,7 +32,8 @@ exports.registerAdminServices = asyncHandler(async (req, res, next) => {
     phone,
     address,
     schoolName,
-    city,lauguage
+    city,lauguage,
+    image
   });
 
   // 2- Generate token

@@ -5,6 +5,7 @@ const { isLogin } = require("../middlewares/isLogin");
 const isTeacher = require("../middlewares/isTeacher");
 const advancedResults = require("../middlewares/advancedResults");
 const Teacher = require("../models/Teacher");
+const { uploadSingleImage, resizeImage } = require("../middlewares/uploadImageMiddleWares");
 const {
   adminRegisterTeacher,
   loginTeacher,
@@ -17,7 +18,13 @@ const {
 } = require("../services/teachersServices");
 
 const router = express.Router();
-router.route("/admins/register").post(isLogin, isAdmin, adminRegisterTeacher);
+router.route("/admins/register").post(
+  isLogin,
+  isAdmin,
+  uploadSingleImage("image"),
+  resizeImage("teachers"),
+  adminRegisterTeacher
+);
 
 router.route("/login").post(loginTeacher);
 

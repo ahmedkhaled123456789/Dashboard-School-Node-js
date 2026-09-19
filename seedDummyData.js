@@ -25,6 +25,25 @@ async function main() {
   await mongoose.connect(process.env.DB_URI);
   console.log(`Connected to MongoDB: ${mongoose.connection.host}/${mongoose.connection.name}`);
 
+  await Promise.all([
+    AcademicTerm.deleteMany({}),
+    AcademicYear.deleteMany({}),
+    Admin.deleteMany({}),
+    ClassLevel.deleteMany({}),
+    Exam.deleteMany({}),
+    ExamResult.deleteMany({}),
+    Expenses.deleteMany({}),
+    FeesGroup.deleteMany({}),
+    Parents.deleteMany({}),
+    Program.deleteMany({}),
+    Question.deleteMany({}),
+    Student.deleteMany({}),
+    Subject.deleteMany({}),
+    Teacher.deleteMany({}),
+    YearGroup.deleteMany({}),
+  ]);
+  console.log("Existing seed data cleared.");
+
   const adminDocs = await Admin.insertMany(
     Array.from({ length: 10 }, (_, i) => ({
       name: `Admin ${i + 1}`,
@@ -32,6 +51,7 @@ async function main() {
       password: seedPassword,
       role: "admin",
       phone: `010000000${String(i + 1).padStart(2, "0")}`,
+      image: "profile.jpg",
       schoolName: "School Management Academy",
       address: `${i + 1} Education Street, Cairo`,
     }))
@@ -106,6 +126,7 @@ async function main() {
       name: `Teacher ${i + 1}`,
       email: `teacher${i + 1}@school.test`,
       password: seedPassword,
+      image: "profile.jpg",
       phone: `011000000${String(i + 1).padStart(2, "0")}`,
       religion: i % 2 === 0 ? "Muslim" : "Christian",
       address: `${i + 1} Teachers Avenue, Cairo`,
@@ -147,6 +168,7 @@ async function main() {
       name: `Student ${i + 1}`,
       email: `student${i + 1}@school.test`,
       password: seedPassword,
+      image: "profile.jpg",
       phone: `012000000${String(i + 1).padStart(2, "0")}`,
       religion: i % 2 === 0 ? "Muslim" : "Christian",
       address: `${i + 1} Students Street, Cairo`,
@@ -181,6 +203,7 @@ async function main() {
       name: `Parent ${i + 1}`,
       email: `parent${i + 1}@school.test`,
       password: seedPassword,
+      image: "profile.jpg",
       phone: 201000000000 + i,
       religion: i % 2 === 0 ? "Muslim" : "Christian",
       occupation: i % 2 === 0 ? "Engineer" : "Teacher",

@@ -11,7 +11,7 @@ const createToken = require("../utils/createToken");
 //@acess  Private
 
 exports.adminRegisterParents = AysncHandler(async (req, res,next) => {
-  const { name, email, password,student, phone, address,occupation, religion,id } = req.body;
+  const { name, email, password,student, phone, address,occupation, religion,id, image } = req.body;
 
   //find the admin
   const adminFound = await Admin.findById(req.userAuth._id);
@@ -33,6 +33,7 @@ exports.adminRegisterParents = AysncHandler(async (req, res,next) => {
     occupation,
     religion,
     student,
+    image,
     password: await bcrypt.hash(req.body.password, 12),
   });
   //push Parents into admin

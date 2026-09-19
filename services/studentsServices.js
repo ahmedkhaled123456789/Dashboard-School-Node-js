@@ -27,7 +27,8 @@ exports.adminRegisterStudent = AysncHandler(async (req, res, next) => {
     religion,
     status,
     classLevels,
-    fatherEmail
+    fatherEmail,
+    image
 
 
   } = req.body;
@@ -59,7 +60,8 @@ exports.adminRegisterStudent = AysncHandler(async (req, res, next) => {
     religion,
     status,
     classLevels,
-    fatherEmail
+    fatherEmail,
+    image
   });
   //push student into admin
   adminFound.students.push(studentRegistered?._id);
