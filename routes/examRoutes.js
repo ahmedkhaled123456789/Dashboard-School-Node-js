@@ -15,7 +15,7 @@ const {
 
 const router = express.Router();
 router.route("/").post(isTeacherLogin, isTeacher, createExam)
-  .get(isTeacherLogin, isTeacher, advancedResults(Exam, {
+  .get(isLogin, isAdmin, advancedResults(Exam, {
     path: "questions",
     populate: {
       path: "createdBy",

@@ -12,7 +12,7 @@ const {
 } = require("../services/examResults"); 
 
 const router = express.Router();
-router.route("/").get(isStudentLogin, isStudent,advancedResults(ExamResults), getAllExamResults);
+router.route("/").get(isLogin, isAdmin,advancedResults(ExamResults), getAllExamResults);
 
 router
   .route("/:id/checking")
