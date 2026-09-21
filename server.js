@@ -19,6 +19,9 @@ dbConnect();
 app.use(morgan("dev"));
   
 // mount routes
+app.get("/api", (req, res) => {
+  res.status(200).json({ status: "success", message: "School Management API is running" });
+});
 // app.get('/test', (req,res) =>{
 //   res.send('Hello World!');
 // })
@@ -33,17 +36,20 @@ app.all("*", (req, res, next) => {
 //  Global error handling middleware
 app.use(globalError);
 
-const PORT= process.env.PORT || 3000;
- //server
-app.listen(PORT,console.log(`server is running in port ${PORT}`));
+const PORT = process.env.PORT || 3000;
+
+if (require.main === module) {
+  app.listen(PORT, () => {
+    console.log(`server is running in port ${PORT}`);
+  });
+}
+
+module.exports = app;
 
 
 // Handle Errors Rejections Outside Express
 process.on("unhandledRejection", (err) => {
   console.log(`unhandledRejection error ${err.name} ${err.message}`);
-  sever.close(() => {
-    console.log("server shutting down");
-    process.exit(1);
-  });
+  process.exit(1);
 });
 
