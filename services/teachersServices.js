@@ -11,7 +11,7 @@ const createToken = require("../utils/createToken");
 //@acess  Private
 
 exports.adminRegisterTeacher = AysncHandler(async (req, res,next) => {
-  const { name, email,classLevels, password,gender, phone, address, subject, religion, image } = req.body;
+  const { name, email,classLevels, password,gender, phone, address, subject, religion } = req.body;
   //find the admin
   const adminFound = await Admin.findById(req.userAuth._id);
   if (!adminFound) {
@@ -33,7 +33,6 @@ exports.adminRegisterTeacher = AysncHandler(async (req, res,next) => {
     religion,
     gender,
     classLevels,
-    image,
     password: await bcrypt.hash(req.body.password, 12),
   });
   //push teacher into admin

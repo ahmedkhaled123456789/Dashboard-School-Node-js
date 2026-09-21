@@ -5,7 +5,6 @@ const { isLogin } = require("../middlewares/isLogin");
 const isStudent = require("../middlewares/isStudent");
 const Studend = require("../models/Student");
 const advancedResults = require("../middlewares/advancedResults");
-const { uploadSingleImage, resizeImage } = require("../middlewares/uploadImageMiddleWares");
 
 const {
   adminRegisterStudent,
@@ -25,8 +24,6 @@ const router = express.Router({ mergeParams: true });
 router.route("/admins/register").post(
   isLogin,
   isAdmin,
-  uploadSingleImage("image"),
-  resizeImage("students"),
   adminRegisterStudent
 );
 router.route("/login").post(loginStudent);

@@ -5,19 +5,11 @@ const bcrypt = require("bcryptjs");
 
 const createToken = require("../utils/createToken");
 
-const {
-  uploadSingleImage,
-  resizeImage: resizeProfileImage,
-} = require("../middlewares/uploadImageMiddleWares");
-
- 
-exports.uploadAdminImage = uploadSingleImage("image");
-exports.resizeImage = resizeProfileImage("admins");
 // @desc     register admin
 // @route   POST /api/v1/admins/register
 // @access  private
 exports.registerAdminServices = asyncHandler(async (req, res, next) => {
-  const { name, email, password, phone, address, schoolName,city,lauguage, image } = req.body;
+  const { name, email, password, phone, address, schoolName,city,lauguage } = req.body;
 
   //Check if email exists
   const adminFound = await Admin.findOne({ email });
@@ -32,8 +24,7 @@ exports.registerAdminServices = asyncHandler(async (req, res, next) => {
     phone,
     address,
     schoolName,
-    city,lauguage,
-    image
+    city,lauguage
   });
 
   // 2- Generate token

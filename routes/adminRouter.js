@@ -6,8 +6,6 @@ const {
   updateAdminServices,
   deleteAdminServices,
   getAdminProfileServices,
-   uploadAdminImage,
-  resizeImage,
 } = require("./../services/adminServices");
 const { isLogin } = require("../middlewares/isLogin");
 const isAdmin = require("../middlewares/isAdmin");
@@ -17,7 +15,7 @@ const router = express.Router();
 // routes
 
 //admin register
-router.post("/register", uploadAdminImage, resizeImage, registerAdminServices);
+router.post("/register", registerAdminServices);
   
 //login
 router.post("/login", loginAdminServices);

@@ -5,7 +5,6 @@ const { isLogin } = require("../middlewares/isLogin");
 const isParent = require("../middlewares/isParent");
 const advancedResults = require("../middlewares/advancedResults");
 const Parents = require("../models/Parents");
-const { uploadSingleImage, resizeImage } = require("../middlewares/uploadImageMiddleWares");
 const {
   adminRegisterParents,
   loginParents,
@@ -19,8 +18,6 @@ const router = express.Router();
 router.route("/admins/register").post(
   isLogin,
   isAdmin,
-  uploadSingleImage("image"),
-  resizeImage("parents"),
   adminRegisterParents
 );
 

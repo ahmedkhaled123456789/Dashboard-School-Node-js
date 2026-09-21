@@ -28,9 +28,6 @@ exports.adminRegisterStudent = AysncHandler(async (req, res, next) => {
     status,
     classLevels,
     fatherEmail,
-    image
-
-
   } = req.body;
   //find the admin
   const adminFound = await Admin.findById(req.userAuth._id);
@@ -60,8 +57,7 @@ exports.adminRegisterStudent = AysncHandler(async (req, res, next) => {
     religion,
     status,
     classLevels,
-    fatherEmail,
-    image
+    fatherEmail
   });
   //push student into admin
   adminFound.students.push(studentRegistered?._id);
