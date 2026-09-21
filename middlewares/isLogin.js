@@ -24,8 +24,23 @@ exports.isLogin = asyncHandler(async (req, res, next) => {
     );
   }
 
-  // 2) Verify token (no change happens, expired token)
-  const decoded = jwt.verify(token, process.env.JWT_SECRET_KEY);
+  // 2) Verify token
+  let decoded;
+  try {
+    decoded = jwt.verify(token, process.env.JWT_SECRET_KEY);
+  } catch (error) {
+    if (error.name === "TokenExpiredError") {
+      return next(
+        new ApiError("Your login token has expired, please login again", 401)
+      );
+    }
+
+    if (error.name === "JsonWebTokenError") {
+      return next(new ApiError("Invalid login token", 401));
+    }
+
+    return next(error);
+  }
   console.log(decoded);
   // 3) ckeck if user exist
   const currentUser = await Admin.findById(decoded.userId).select(
