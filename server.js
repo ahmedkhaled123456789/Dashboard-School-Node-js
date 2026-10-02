@@ -13,17 +13,30 @@ app.use(cors());
 //  middlewares
 // bigger limit so profile pictures (base64) fit in the body
 app.use(express.json({ limit: "2mb" }));
-// connect to database
-dbConnect();
+// connect to database (local: stop the server if the database is unreachable)
+dbConnect().catch(() => {
+  if (!process.env.VERCEL) process.exit(1);
+});
 //middleware
 if (process.env.NODE_ENV !== "production") {
   app.use(morgan("dev"));
 }
 
-// mount routes
 app.get("/api", (req, res) => {
   res.status(200).json({ status: "success", message: "School Management API is running" });
 });
+
+// make sure the database is connected (reconnects after a failed attempt)
+app.use(async (req, res, next) => {
+  try {
+    await dbConnect();
+    next();
+  } catch (err) {
+    next(new ApiError(`Database connection failed: ${err.message}`, 503));
+  }
+});
+
+// mount routes
 mountRoutes(app);
 // create error and send it to handling error
 app.all("*", (req, res, next) => {
