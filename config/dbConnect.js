@@ -8,7 +8,8 @@ const dbConnect = () => {
     })
     .catch((err) => {
       console.error(`Database Error: ${err.message}`);
-      process.exit(1);
+      // on Vercel, exiting kills the function and every request on it
+      if (!process.env.VERCEL) process.exit(1);
     });
 };
 

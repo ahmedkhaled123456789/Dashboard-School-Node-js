@@ -44,7 +44,8 @@ if (require.main === module) {
 // Handle Errors Rejections Outside Express
 process.on("unhandledRejection", (err) => {
   console.log(`unhandledRejection error ${err.name} ${err.message}`);
-  process.exit(1);
+  // on Vercel, exiting kills the function and every request on it
+  if (!process.env.VERCEL) process.exit(1);
 });
 
 module.exports = app;
