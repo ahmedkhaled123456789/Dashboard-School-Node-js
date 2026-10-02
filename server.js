@@ -11,7 +11,8 @@ const ApiError = require('./utils/apiError');
 const app = express();
 app.use(cors());
 //  middlewares
-app.use(express.json());
+// bigger limit so profile pictures (base64) fit in the body
+app.use(express.json({ limit: "2mb" }));
 // connect to database
 dbConnect();
 //middleware

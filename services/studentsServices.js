@@ -8,6 +8,7 @@ const Admin = require("../models/Admin");
 const ApiError = require("../utils/apiError");
 const bcrypt = require("bcryptjs");
 const createToken = require("../utils/createToken");
+const { validateImage, normalizeImage } = require("../utils/userImage");
 
 const OPTION_KEYS = ["A", "B", "C", "D"];
 
@@ -35,7 +36,14 @@ exports.adminRegisterStudent = AysncHandler(async (req, res, next) => {
     status,
     classLevels,
     fatherEmail,
+    image,
   } = req.body;
+  if (image !== undefined) {
+    const imageError = validateImage(image);
+    if (imageError) {
+      return next(new ApiError(imageError, 400));
+    }
+  }
   if (!password) {
     return next(new ApiError("Password is required", 400));
   }
@@ -66,6 +74,7 @@ exports.adminRegisterStudent = AysncHandler(async (req, res, next) => {
     status,
     classLevels,
     fatherEmail,
+    image: image ? normalizeImage(image) : undefined,
   });
   //push student into admin and his class levels
   await Admin.findByIdAndUpdate(adminFound._id, {
@@ -219,8 +228,15 @@ exports.adminUpdateStudent = AysncHandler(async (req, res, next) => {
     isSuspended,
     isWithdrawn,
     isGraduated,
+    image,
   } = req.body;
   const { studentID } = req.params;
+  if (image !== undefined) {
+    const imageError = validateImage(image);
+    if (imageError) {
+      return next(new ApiError(imageError, 400));
+    }
+  }
 
   //find the student by id
   const studentFound = await Student.findById(studentID);
@@ -257,6 +273,9 @@ exports.adminUpdateStudent = AysncHandler(async (req, res, next) => {
     isWithdrawn,
     isGraduated,
   };
+  if (image !== undefined) {
+    update.image = normalizeImage(image);
+  }
   //never store a plain text password
   if (password) {
     update.password = await bcrypt.hash(password, 12);

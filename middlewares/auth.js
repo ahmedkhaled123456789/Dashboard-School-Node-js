@@ -4,11 +4,18 @@ const jwt = require("jsonwebtoken");
 const Admin = require("../models/Admin");
 const Teacher = require("../models/Teacher");
 const Student = require("../models/Student");
+const Parents = require("../models/Parents");
 const ApiError = require("../utils/apiError");
 
 // Looks up the token owner in every user collection, so one route can serve
 // several roles (e.g. admin sees all exams, teacher sees only his own exams).
-const MODELS = { admin: Admin, teacher: Teacher, student: Student };
+const MODELS = {
+  admin: Admin,
+  teacher: Teacher,
+  student: Student,
+  parent: Parents,
+};
+exports.MODELS = MODELS;
 
 exports.protect = asyncHandler(async (req, res, next) => {
   let token;

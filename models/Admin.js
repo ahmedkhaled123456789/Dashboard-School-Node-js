@@ -1,6 +1,7 @@
 const bcrypt = require("bcryptjs");
 
 const mongoose = require("mongoose");
+const { DEFAULT_USER_IMAGE } = require("../utils/userImage");
 const adminSchema = new mongoose.Schema(
   {
     name: {
@@ -24,6 +25,11 @@ const adminSchema = new mongoose.Schema(
     role: {
       type: String,
       default: "admin",
+    },
+    // profile picture: base64 data url / url, defaults to the shared picture
+    image: {
+      type: String,
+      default: DEFAULT_USER_IMAGE,
     },
     phone: {
       type: String,

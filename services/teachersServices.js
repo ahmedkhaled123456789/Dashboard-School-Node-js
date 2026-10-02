@@ -5,6 +5,7 @@ const Admin = require("../models/Admin");
 const ApiError = require("../utils/apiError");
 const bcrypt = require("bcryptjs");
 const createToken = require("../utils/createToken");
+const { validateImage, normalizeImage } = require("../utils/userImage");
 
 //@desc  Admin Register Teacher
 //@route POST /api/v1/teachers/admins/register
@@ -20,7 +21,14 @@ exports.adminRegisterTeacher = AysncHandler(async (req, res, next) => {
     address,
     subject,
     religion,
+    image,
   } = req.body;
+  if (image !== undefined) {
+    const imageError = validateImage(image);
+    if (imageError) {
+      return next(new ApiError(imageError, 400));
+    }
+  }
   if (!password) {
     return next(new ApiError("Password is required", 400));
   }
@@ -45,6 +53,7 @@ exports.adminRegisterTeacher = AysncHandler(async (req, res, next) => {
     religion,
     gender,
     classLevels,
+    image: image ? normalizeImage(image) : undefined,
     createdBy: adminFound._id,
     password: await bcrypt.hash(password, 12),
   });
@@ -175,8 +184,15 @@ exports.adminUpdateTeacher = AysncHandler(async (req, res, next) => {
     isSuspended,
     isWitdrawn,
     applicationStatus,
+    image,
   } = req.body;
   const { teacherID } = req.params;
+  if (image !== undefined) {
+    const imageError = validateImage(image);
+    if (imageError) {
+      return next(new ApiError(imageError, 400));
+    }
+  }
 
   const teacherFound = await Teacher.findById(teacherID);
   if (!teacherFound) {
@@ -214,6 +230,9 @@ exports.adminUpdateTeacher = AysncHandler(async (req, res, next) => {
   }
   if (Array.isArray(classLevels)) {
     update.classLevels = classLevels;
+  }
+  if (image !== undefined) {
+    update.image = normalizeImage(image);
   }
 
   const query = { $set: update };

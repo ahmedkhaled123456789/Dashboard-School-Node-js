@@ -5,6 +5,7 @@ const Admin = require("../models/Admin");
 const ApiError = require("../utils/apiError");
 const bcrypt = require("bcryptjs");
 const createToken = require("../utils/createToken");
+const { validateImage, normalizeImage } = require("../utils/userImage");
 
 //@desc  Admin Register Parents
 //@route POST /api/v1/parents/admins/register
@@ -19,7 +20,14 @@ exports.adminRegisterParents = AysncHandler(async (req, res, next) => {
     address,
     occupation,
     religion,
+    image,
   } = req.body;
+  if (image !== undefined) {
+    const imageError = validateImage(image);
+    if (imageError) {
+      return next(new ApiError(imageError, 400));
+    }
+  }
   if (!password) {
     return next(new ApiError("Password is required", 400));
   }
@@ -44,6 +52,7 @@ exports.adminRegisterParents = AysncHandler(async (req, res, next) => {
     occupation,
     religion,
     student,
+    image: image ? normalizeImage(image) : undefined,
     password: await bcrypt.hash(password, 12),
   });
   //push Parents into admin
@@ -121,8 +130,23 @@ exports.getParentsProfile = AysncHandler(async (req, res, next) => {
 exports.adminUpdateParents = AysncHandler(async (req, res, next) => {
   const { parentID } = req.params;
 
-  const { email, name, password, phone, address, occupation, religion, student } =
-    req.body;
+  const {
+    email,
+    name,
+    password,
+    phone,
+    address,
+    occupation,
+    religion,
+    student,
+    image,
+  } = req.body;
+  if (image !== undefined) {
+    const imageError = validateImage(image);
+    if (imageError) {
+      return next(new ApiError(imageError, 400));
+    }
+  }
   //if email is taken by another parent
   if (email) {
     const emailExist = await Parents.findOne({ email, _id: { $ne: parentID } });
@@ -132,6 +156,9 @@ exports.adminUpdateParents = AysncHandler(async (req, res, next) => {
   }
 
   const update = { email, name, phone, address, occupation, religion, student };
+  if (image !== undefined) {
+    update.image = normalizeImage(image);
+  }
   //check if user is updating password
   if (password) {
     update.password = await bcrypt.hash(password, 12);

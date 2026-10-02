@@ -13,6 +13,7 @@ const examResultsRoute = require("./examRsultsRoute");
 const parents = require("./parents");
 const feesGroup = require("./feesGroup");
 const expenses = require("./expenses");
+const profileImage = require("./profileImage");
 
 const mountRoutes = (app) => {
   app.get("/api/v1", (req, res) => {
@@ -36,6 +37,7 @@ const mountRoutes = (app) => {
   app.use("/api/v1/questions", questionRoutes);
   app.use("/api/v1/exam-results", examResultsRoute);
   app.use("/api/v1/expenses", expenses);
+  app.use("/api/v1/profile", profileImage);
 };
 
 module.exports = mountRoutes;

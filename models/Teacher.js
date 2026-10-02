@@ -1,4 +1,5 @@
 const mongoose = require("mongoose");
+const { DEFAULT_USER_IMAGE } = require("../utils/userImage");
 const teacherSchema = new mongoose.Schema(
   {
     name: {
@@ -62,6 +63,11 @@ const teacherSchema = new mongoose.Schema(
     role: {
       type: String,
       default: "teacher",
+    },
+    // profile picture: base64 data url / url, defaults to the shared picture
+    image: {
+      type: String,
+      default: DEFAULT_USER_IMAGE,
     },
     subject: {
       type: mongoose.Schema.Types.ObjectId,
