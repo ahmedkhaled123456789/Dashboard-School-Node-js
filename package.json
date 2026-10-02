@@ -7,8 +7,6 @@
     "start": "node server.js",
     "server": "nodemon server.js",
     "seed": "node seedDummyData.js"
-
-
   },
   "keywords": [
     "lms",

@@ -20,6 +20,9 @@ if (process.env.NODE_ENV !== "production") {
 }
 
 // mount routes
+app.get("/api", (req, res) => {
+  res.status(200).json({ status: "success", message: "School Management API is running" });
+});
 mountRoutes(app);
 // create error and send it to handling error
 app.all("*", (req, res, next) => {
@@ -29,20 +32,19 @@ app.all("*", (req, res, next) => {
 //  Global error handling middleware
 app.use(globalError);
 
-const PORT= process.env.PORT || 3000;
- //server
-const server = app.listen(PORT, () =>
-  console.log(`server is running in port ${PORT}`)
-);
+const PORT = process.env.PORT || 3000;
 
+// only listen when run directly (node server.js); on Vercel the app is exported
+if (require.main === module) {
+  app.listen(PORT, () => {
+    console.log(`server is running in port ${PORT}`);
+  });
+}
 
 // Handle Errors Rejections Outside Express
 process.on("unhandledRejection", (err) => {
   console.log(`unhandledRejection error ${err.name} ${err.message}`);
-  server.close(() => {
-    console.log("server shutting down");
-    process.exit(1);
-  });
+  process.exit(1);
 });
 
 module.exports = app;

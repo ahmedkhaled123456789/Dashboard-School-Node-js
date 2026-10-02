@@ -17,7 +17,11 @@ const {
 } = require("../services/teachersServices");
 
 const router = express.Router();
-router.route("/admins/register").post(isLogin, isAdmin, adminRegisterTeacher);
+router.route("/admins/register").post(
+  isLogin,
+  isAdmin,
+  adminRegisterTeacher
+);
 
 router.route("/login").post(loginTeacher);
 

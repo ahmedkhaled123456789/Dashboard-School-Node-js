@@ -21,7 +21,11 @@ const {
 
 const router = express.Router();
 
-router.route("/admins/register").post(isLogin, isAdmin, adminRegisterStudent);
+router.route("/admins/register").post(
+  isLogin,
+  isAdmin,
+  adminRegisterStudent
+);
 router.route("/login").post(loginStudent);
 
 router

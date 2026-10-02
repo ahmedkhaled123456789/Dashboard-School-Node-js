@@ -4,6 +4,7 @@ const ApiError = require("../utils/apiError");
 const bcrypt = require("bcryptjs");
 
 const createToken = require("../utils/createToken");
+
 // @desc     register admin
 // @route   POST /api/v1/admins/register
 // @access  private
