@@ -1,16 +1,23 @@
 const AysncHandler = require("express-async-handler");
-const Student = require(".././models/Student");
-const Exam = require(".././models/Exam");
-const ExamResult = require(".././models/ExamResults");
-const Admin = require(".././models/Admin");
+const Student = require("../models/Student");
+const Exam = require("../models/Exam");
+const ExamResult = require("../models/ExamResults");
+const ClassLevel = require("../models/ClassLevel");
+const Admin = require("../models/Admin");
 
 const ApiError = require("../utils/apiError");
 const bcrypt = require("bcryptjs");
 const createToken = require("../utils/createToken");
-//@desc  Admin Register Student
-//@route POST /api/students/admin/register
-//@acess  Private Admin only
 
+const OPTION_KEYS = ["A", "B", "C", "D"];
+
+// class level ids of a student (classLevels are auto populated by the model)
+const studentClassIds = (student) =>
+  (student?.classLevels || []).map((level) => String(level?._id || level));
+
+//@desc  Admin Register Student
+//@route POST /api/v1/students/admins/register
+//@acess  Private Admin only
 exports.adminRegisterStudent = AysncHandler(async (req, res, next) => {
   const {
     name,
@@ -20,50 +27,56 @@ exports.adminRegisterStudent = AysncHandler(async (req, res, next) => {
     phone,
     address,
     gender,
-      fatherOccupation,
+    fatherOccupation,
     dateOfBirth,
     motherName,
     fatherName,
     religion,
     status,
     classLevels,
-    fatherEmail
-
-
+    fatherEmail,
   } = req.body;
+  if (!password) {
+    return next(new ApiError("Password is required", 400));
+  }
   //find the admin
   const adminFound = await Admin.findById(req.userAuth._id);
   if (!adminFound) {
-    throw new Error("Admin not found");
+    return next(new ApiError("Admin not found", 404));
   }
-  //check if teacher already exists
+  //check if student already exists
   const student = await Student.findOne({ email });
   if (student) {
-    return next(new ApiError("Student already employed", 404));
+    return next(new ApiError("Student already exists", 400));
   }
-  //Hash password
-  const hashedPassword = await bcrypt.hash(req.body.password, 12);
   // create
   const studentRegistered = await Student.create({
     name,
     email,
-    password: hashedPassword,
+    password: await bcrypt.hash(password, 12),
     admissionDate,
     phone,
     address,
     gender,
-      fatherOccupation,
+    fatherOccupation,
     dateOfBirth,
     motherName,
     fatherName,
     religion,
     status,
     classLevels,
-    fatherEmail
+    fatherEmail,
   });
-  //push student into admin
-  adminFound.students.push(studentRegistered?._id);
-  await adminFound.save();
+  //push student into admin and his class levels
+  await Admin.findByIdAndUpdate(adminFound._id, {
+    $push: { students: studentRegistered._id },
+  });
+  if (Array.isArray(classLevels) && classLevels.length) {
+    await ClassLevel.updateMany(
+      { _id: { $in: classLevels } },
+      { $addToSet: { students: studentRegistered._id } }
+    );
+  }
   //send student data
   res.status(201).json({
     status: "success",
@@ -75,81 +88,67 @@ exports.adminRegisterStudent = AysncHandler(async (req, res, next) => {
 //@desc    login  student
 //@route   POST /api/v1/students/login
 //@access  Public
-
 exports.loginStudent = AysncHandler(async (req, res, next) => {
   const { email, password } = req.body;
   //find the  user
   const student = await Student.findOne({ email });
-  if (!student || !(await bcrypt.compare(password, student.password))) {
+  if (!student || !(await bcrypt.compare(password || "", student.password))) {
     return next(new ApiError("Incorrect email or password", 401));
+  }
+  if (student.isWithdrawn) {
+    return next(new ApiError("Your account has been withdrawn", 403));
   }
   res.status(200).json({
     status: "success",
     message: "Student logged in successfully",
-    data: createToken(student?._id),
+    token: createToken(student._id),
+    data: student,
   });
 });
 
 //@desc    Student Profile
 //@route   GET /api/v1/students/profile
 //@access  Private Student only
-
 exports.getStudentProfile = AysncHandler(async (req, res, next) => {
   const student = await Student.findById(req.userAuth?._id)
-    .select("-password -createdAt -updatedAt")
+    .select("-password")
+    .populate("program", "name")
+    .populate("academicYear", "name")
     .populate("examResults");
   if (!student) {
     return next(new ApiError("Student not found", 404));
   }
-  //get student profile
-  const studentProfile = {
-    name: student?.name,
-    email: student?.email,
-    currentClassLevel: student?.currentClassLevel,
-    program: student?.program,
-    dateAtmitted: student?.dateAdmitted,
-    isSuspended: student?.isSuspended,
-    isWithdrawn: student?.isWithdrawn,
-    studentId: student?.studentId,
-    prefectName: student?.prefectName,
-  };
+  //current class level name (last class level)
+  const levels = student.classLevels || [];
+  const lastLevel = levels[levels.length - 1];
 
-  //get student exam results
-  const examResults = student?.examResults;
-  //current exam
-  const currentExamResult = examResults[examResults.length - 1];
-  //check if exam is published
-  const isPublished = currentExamResult?.isPublished;
-  //send response
+  //current exam result, only if it is published
+  const examResults = student.examResults || [];
+  const lastResult = examResults[examResults.length - 1];
+
   res.status(200).json({
     status: "success",
     data: {
-      studentProfile,
-      currentExamResult: isPublished ? currentExamResult : [],
+      ...student.toJSON(),
+      currentClassLevel: lastLevel?.name || student.currentClassLevel,
+      currentExamResult: lastResult?.isPublished ? lastResult : null,
     },
     message: "Student Profile fetched  successfully",
   });
 });
 
 //@desc    Get all Students
-//@route   GET /api/v1/admin/students
+//@route   GET /api/v1/students/admin
 //@access  Private admin only
-
-exports.getAllStudentsByAdmin = AysncHandler(async (req, res, next) => {
-   
-  console.log(req.params)
- 
+exports.getAllStudentsByAdmin = AysncHandler(async (req, res) => {
   res.status(200).json(res.results);
 });
 
 //@desc    Get Single Student
 //@route   GET /api/v1/students/:studentID/admin
 //@access  Private admin only
-
 exports.getStudentByAdmin = AysncHandler(async (req, res, next) => {
-  const studentID = req.params.studentID;
-  //find the teacher
-  const student = await Student.findById(studentID);
+  const student = await Student.findById(req.params.studentID);
   if (!student) {
     return next(new ApiError("Student not found", 404));
   }
@@ -161,115 +160,120 @@ exports.getStudentByAdmin = AysncHandler(async (req, res, next) => {
 });
 
 //@desc    Student updating profile
-//@route    UPDATE /api/v1/students/update
-//@access   Private Student only
-
+//@route   PUT /api/v1/students/update
+//@access  Private Student only
 exports.studentUpdateProfile = AysncHandler(async (req, res, next) => {
   const { email, password } = req.body;
-  //if email is taken
-  const emailExist = await Student.findOne({ email });
-  if (emailExist) {
-    return next(new ApiError("This email is taken/exist", 404));
+  const studentId = req.userAuth._id;
+  //if email is taken by another student
+  if (email) {
+    const emailExist = await Student.findOne({
+      email,
+      _id: { $ne: studentId },
+    });
+    if (emailExist) {
+      return next(new ApiError("This email is taken/exist", 400));
+    }
   }
 
-  //hash password
+  const update = { email };
   //check if user is updating password
-
   if (password) {
-    //update
-    const student = await Student.findByIdAndUpdate(
-      req.userAuth._id,
-      {
-        email,
-        password: await bcrypt.hash(req.body.password, 12),
-      },
-      {
-        new: true,
-        runValidators: true,
-      }
-    );
-    res.status(200).json({
-      status: "success",
-      data: student,
-      message: "Student updated successfully",
-    });
-  } else {
-    //update
-    const student = await Student.findByIdAndUpdate(
-      req.userAuth._id,
-      {
-        email,
-      },
-      {
-        new: true,
-        runValidators: true,
-      }
-    );
-    res.status(200).json({
-      status: "success",
-      data: student,
-      message: "Student updated successfully",
-    });
+    update.password = await bcrypt.hash(password, 12);
   }
+
+  const student = await Student.findByIdAndUpdate(studentId, update, {
+    new: true,
+    runValidators: true,
+  });
+  res.status(200).json({
+    status: "success",
+    data: student,
+    message: "Student updated successfully",
+  });
 });
 
 //@desc     Admin updating Students eg: Assigning classes....
-//@route    UPDATE /api/v1/students/:studentID/update/admin
+//@route    PUT /api/v1/students/:studentID/update/admin
 //@access   Private Admin only
-
 exports.adminUpdateStudent = AysncHandler(async (req, res, next) => {
-  const { name,
+  const {
+    name,
     email,
     password,
     admissionDate,
     phone,
     address,
     gender,
-      fatherOccupation,
+    fatherOccupation,
     dateOfBirth,
     motherName,
     fatherName,
     fatherEmail,
     religion,
     status,
-    classLevels } =
-    req.body;
+    classLevels,
+    academicYear,
+    program,
+    prefectName,
+    isSuspended,
+    isWithdrawn,
+    isGraduated,
+  } = req.body;
+  const { studentID } = req.params;
 
   //find the student by id
-  const studentFound = await Student.findById(req.params.studentID);
+  const studentFound = await Student.findById(studentID);
   if (!studentFound) {
     return next(new ApiError("Student not found", 404));
+  }
+  //if email is taken by another student
+  if (email) {
+    const emailExist = await Student.findOne({ email, _id: { $ne: studentID } });
+    if (emailExist) {
+      return next(new ApiError("This email is taken/exist", 400));
+    }
+  }
+
+  const update = {
+    name,
+    email,
+    admissionDate,
+    phone,
+    address,
+    gender,
+    fatherOccupation,
+    dateOfBirth,
+    motherName,
+    fatherName,
+    fatherEmail,
+    religion,
+    status,
+    classLevels,
+    academicYear: academicYear || undefined,
+    program: program || undefined,
+    prefectName,
+    isSuspended,
+    isWithdrawn,
+    isGraduated,
+  };
+  //never store a plain text password
+  if (password) {
+    update.password = await bcrypt.hash(password, 12);
   }
 
   //update
   const studentUpdated = await Student.findByIdAndUpdate(
-    req.params.studentID,
-    {
-      $set: {
-        name,
-        email,
-        password,
-        admissionDate, 
-        phone,
-        address,
-        gender,
-          fatherOccupation,
-        dateOfBirth,
-        motherName,
-        fatherName,
-        religion,
-        status, 
-        classLevels
-         
-      },
-      // $addToSet: {
-      //   classLevels,
-      // },
-    },
-    {
-      new: true,
-    }
+    studentID,
+    { $set: update },
+    { new: true, runValidators: true }
   );
+  if (Array.isArray(classLevels) && classLevels.length) {
+    await ClassLevel.updateMany(
+      { _id: { $in: classLevels } },
+      { $addToSet: { students: studentUpdated._id } }
+    );
+  }
   //send response
   res.status(200).json({
     status: "success",
@@ -278,85 +282,129 @@ exports.adminUpdateStudent = AysncHandler(async (req, res, next) => {
   });
 });
 
-//@desc     Student taking Exams
-//@route    POST /api/v1/students/exams/:examID/write
+//@desc     Student-safe exam paper (no correct answers)
+//@route    GET /api/v1/students/exam/:examID
 //@access   Private Students only
+exports.getStudentExamPaper = AysncHandler(async (req, res, next) => {
+  const studentFound = await Student.findById(req.userAuth?._id);
+  if (!studentFound) {
+    return next(new ApiError("Student not found", 404));
+  }
+  const examFound = await Exam.findById(req.params.examID)
+    .populate("subject", "name")
+    .populate("classLevel", "name")
+    .populate("questions", "question optionA optionB optionC optionD");
+  if (!examFound) {
+    return next(new ApiError("Exam not found", 404));
+  }
+  if (examFound.examStatus !== "live") {
+    return next(new ApiError("This exam is not live yet", 400));
+  }
+  //student must belong to the exam class level (when he has one)
+  const classIds = studentClassIds(studentFound);
+  const examClass = String(examFound.classLevel?._id || examFound.classLevel);
+  if (classIds.length && !classIds.includes(examClass)) {
+    return next(new ApiError("This exam is not for your class", 403));
+  }
+  //already written?
+  const written = await ExamResult.findOne({
+    studentID: studentFound.studentId,
+    exam: examFound._id,
+  });
+  if (written) {
+    return next(new ApiError("You have already written this exam", 400));
+  }
 
+  const exam = examFound.toJSON();
+  const questions = exam.questions || [];
+  exam.questions = questions.map((question) => question._id);
+
+  res.status(200).json({
+    status: "success",
+    message: "Exam paper fetched successfully",
+    data: { exam, questions },
+  });
+});
+
+//@desc     Student taking Exams
+//@route    POST /api/v1/students/exam/:examID/write
+//@access   Private Students only
 exports.writeExam = AysncHandler(async (req, res, next) => {
   //get student
   const studentFound = await Student.findById(req.userAuth?._id);
   if (!studentFound) {
     return next(new ApiError("Student not found", 404));
   }
-  //Get exam 
-  const examFound = await Exam.findById(req.params.examID)
-    .populate("questions") 
-    // .populate("academicTerm");
-  console.log(examFound);
-
+  if (studentFound.isSuspended || studentFound.isWithdrawn) {
+    return next(new ApiError("Your account cannot write exams", 403));
+  }
+  //Get exam
+  const examFound = await Exam.findById(req.params.examID).populate(
+    "questions"
+  );
   if (!examFound) {
     return next(new ApiError("Exam not found", 404));
   }
+  if (examFound.examStatus !== "live") {
+    return next(new ApiError("This exam is not live yet", 400));
+  }
+  const classIds = studentClassIds(studentFound);
+  if (classIds.length && !classIds.includes(String(examFound.classLevel))) {
+    return next(new ApiError("This exam is not for your class", 403));
+  }
+
   //get questions
-  const questions = examFound?.questions;
+  const questions = examFound.questions || [];
+  if (questions.length === 0) {
+    return next(new ApiError("This exam has no questions", 400));
+  }
   //get students questions answers
   const studentAnswers = req.body.answers;
-  console.log("studentAnswers:", studentAnswers);
-  console.log("questions:", questions);
   //check if student answered all questions
-  if (studentAnswers.length !== questions.length) {
-    return next(new ApiError("You have not answered all the questions", 404));
+  if (
+    !Array.isArray(studentAnswers) ||
+    studentAnswers.length !== questions.length ||
+    studentAnswers.some((answer) => !answer)
+  ) {
+    return next(new ApiError("You have not answered all the questions", 400));
   }
 
-  // check if student has already taken the exams
+  // check if student has already taken the exam
   const studentFoundInResults = await ExamResult.findOne({
-    student: studentFound?._id,
+    studentID: studentFound.studentId,
+    exam: examFound._id,
   });
   if (studentFoundInResults) {
-    return next(new ApiError("You have already written this exam", 404));
+    return next(new ApiError("You have already written this exam", 400));
   }
-
-  //Build report object
-  let correctanswers = 0;
-  let wrongAnswers = 0;
-  let status = ""; //failed/passed
-  let grade = 0;
-  let remarks = "";
-  let score = 0;
-  let answeredQuestions = [];
 
   //check for answers
-  for (let i = 0; i < questions.length; i++) {
-    //find the question
-    const question = questions[i];
-    //check if the answer is correct
-    if (question.correctAnswer === studentAnswers[i]) {
-      correctanswers++; 
-      score++;
-      question.isCorrect = true;
-    } else {
-      wrongAnswers++;
-    }
-  }
-  //calculate reports
-  totalQuestions = questions.length;
-  grade = (correctanswers / questions.length) * 100;
-  answeredQuestions = questions.map((question) => {
+  // the answer can be the option key (A/B/C/D) or the option text
+  let correctAnswers = 0;
+  const answeredQuestions = questions.map((question, i) => {
+    const answer = String(studentAnswers[i]).trim();
+    const answerText = OPTION_KEYS.includes(answer.toUpperCase())
+      ? question[`option${answer.toUpperCase()}`]
+      : answer;
+    const correct = String(question.correctAnswer).trim();
+    const isCorrect = answer === correct || answerText === correct;
+    if (isCorrect) correctAnswers += 1;
     return {
       question: question.question,
-      correctanswer: question.correctAnswer,
-      isCorrect: question.isCorrect,
+      studentAnswer: answerText,
+      correctAnswer: question.correctAnswer,
+      isCorrect,
     };
   });
 
-  //calculate status
-  if (grade >= 50) {
-    status = "Pass";
-  } else {
-    status = "Fail";
-  }
+  //calculate reports
+  const score = correctAnswers;
+  const grade = Math.round((correctAnswers / questions.length) * 100);
+  const passMark = examFound.passMark ?? 50;
+  const status = grade >= passMark ? "Pass" : "Fail";
 
   //Remarks
+  let remarks;
   if (grade >= 80) {
     remarks = "Excellent";
   } else if (grade >= 70) {
@@ -371,66 +419,20 @@ exports.writeExam = AysncHandler(async (req, res, next) => {
 
   //Generate Exam results
   const examResults = await ExamResult.create({
-    studentID: studentFound?.studentId,
-    exam: examFound?._id,
+    studentID: studentFound.studentId,
+    exam: examFound._id,
     grade,
     score,
-    status, 
+    passMark,
+    status,
     remarks,
-    classLevel: examFound?.classLevel,
-    // academicTerm: examFound?.academicTerm,
-    // academicYear: examFound?.academicYear,
-    answeredQuestions: answeredQuestions,
+    classLevel: examFound.classLevel,
+    answeredQuestions,
   });
-  // //push the results into
-  studentFound.examResults.push(examResults?._id);
-  // //save
-  await studentFound.save();
-
-  //Promoting
-  //promote student to level 200
-  if (
-    // examFound.academicTerm.name === "3rd term" &&
-    status === "Pass" &&
-    studentFound?.currentClassLevel === "Level 100"
-  ) {
-    studentFound.classLevels.push("Level 200");
-    studentFound.currentClassLevel = "Level 200";
-    await studentFound.save();
-  } 
-
-  //promote student to level 300
-  if (
-    // examFound.academicTerm.name === "3rd term" &&
-    status === "Pass" &&
-    studentFound?.currentClassLevel === "Level 200"
-  ) {
-    studentFound.classLevels.push("Level 300");
-    studentFound.currentClassLevel = "Level 300";
-    await studentFound.save();
-  }
-
-  //promote student to level 400
-  if (
-    // examFound.academicTerm.name === "3rd term" &&
-    status === "Pass" &&
-    studentFound?.currentClassLevel === "Level 300"
-  ) {
-    studentFound.classLevels.push("Level 400");
-    studentFound.currentClassLevel = "Level 400";
-    await studentFound.save();
-  }
-
-  //promote student to graduate
-  if (
-    // examFound.academicTerm.name === "3rd term" &&
-    status === "Pass" &&
-    studentFound?.currentClassLevel === "Level 400"
-  ) {
-    studentFound.isGraduated = true;
-    studentFound.yearGraduated = new Date();
-    await studentFound.save();
-  }
+  //push the results into the student
+  await Student.findByIdAndUpdate(studentFound._id, {
+    $push: { examResults: examResults._id },
+  });
 
   res.status(200).json({
     status: "success",
@@ -438,13 +440,17 @@ exports.writeExam = AysncHandler(async (req, res, next) => {
   });
 });
 
-
-
 //@desc   Delete  student
- //@acess  Private
-exports.deleteStudent = AysncHandler(async (req, res) => {
-  await Student.findOneAndDelete(req.params.id);
-  res.status(201).json({
+//@route  DELETE /api/v1/students/:studentID/admin
+//@acess  Private admin only
+exports.deleteStudent = AysncHandler(async (req, res, next) => {
+  const student = await Student.findByIdAndDelete(req.params.studentID);
+  if (!student) {
+    return next(new ApiError("Student not found", 404));
+  }
+  await Admin.updateMany({}, { $pull: { students: student._id } });
+  await ClassLevel.updateMany({}, { $pull: { students: student._id } });
+  res.status(200).json({
     status: "success",
     message: "Student deleted successfully",
   });

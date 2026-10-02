@@ -25,14 +25,14 @@ exports.isStudentLogin = asyncHandler(async (req, res, next) => {
   }
 
   // 2) Verify token (no change happens, expired token)
-  const decoded = jwt.verify(token, process.env.JWT_SECRET_KEY);
-  console.log(decoded);
+  const decoded = jwt.verify(token, process.env.JWT_SECRET_KEY);
   // 3) ckeck if user exist
   const currentUser = await Student.findById(decoded.userId).select(
     "name email role"
   );
   if (!currentUser) {
-    next(
+    return next(
+
       new ApiError(
         "the user that belong to this token does no longer exist",
         401

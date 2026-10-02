@@ -44,14 +44,8 @@ const ClassLevelSchema = new Schema(
   },
   { timestamps: true }
 );
-// Mongoose query middleware
-ClassLevelSchema.pre(/^find/, function (next) {
-  this.populate({
-    path: 'students',
-    select: 'name  -_id',
-  });
-  next();
-});
+// NOTE: no auto populate of students here, Student already auto populates
+// classLevels and populating both sides causes an infinite populate loop.
 const ClassLevel = mongoose.model("ClassLevel", ClassLevelSchema);
 
 module.exports = ClassLevel;

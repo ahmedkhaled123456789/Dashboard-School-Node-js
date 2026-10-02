@@ -4,22 +4,22 @@ const Expenses = require("../models/Expenses");
 const advancedResults = require("../middlewares/advancedResults");
 const { isLogin } = require("../middlewares/isLogin");
 const {
-   createExpenses,getExpenses ,updateExpenses,deleteExpenses
+  createExpenses,
+  getExpenses,
+  updateExpenses,
+  deleteExpenses,
 } = require("../services/expensesSevices");
-const student = require("./student");
 
 const router = express.Router();
-router.use("/:id/students", student);
 
- router
+router
   .route("/")
   .post(isLogin, isAdmin, createExpenses)
-  .get(isLogin, isAdmin,advancedResults(Expenses), getExpenses);
- 
+  .get(isLogin, isAdmin, advancedResults(Expenses), getExpenses);
+
 router
   .route("/:id")
-   .put(isLogin, isAdmin, updateExpenses)
+  .put(isLogin, isAdmin, updateExpenses)
   .delete(isLogin, isAdmin, deleteExpenses);
- 
 
 module.exports = router;

@@ -8,20 +8,19 @@ exports.createAcademincTerm = asyncHandler(async (req, res, next) => {
   // check if exists
   const academicTerm = await AcademicTerm.findOne({ name });
   if (academicTerm) {
-    return next(new ApiError("academic year already exists", 404));
+    return next(new ApiError("academic term already exists", 400));
   }
   //craete
-
   const academicTermCreated = await AcademicTerm.create({
     name,
     description,
     duration,
     createdBy: req.userAuth._id,
   });
-  // push academic year into admin
-  const admin = await Admin.findById(req.userAuth._id);
-  admin.academicTerms.push(academicTermCreated._id);
-  await admin.save();
+  // push academic term into admin
+  await Admin.findByIdAndUpdate(req.userAuth._id, {
+    $push: { academicTerms: academicTermCreated._id },
+  });
   res.status(201).json({
     status: "success",
     message: "academic term created successfully",
@@ -29,17 +28,16 @@ exports.createAcademincTerm = asyncHandler(async (req, res, next) => {
   });
 });
 
-exports.getAcademincTerms = asyncHandler(async (req, res, next) => {
+exports.getAcademincTerms = asyncHandler(async (req, res) => {
   res.status(200).json(res.results);
-
 });
 
 exports.getAcademincTerm = asyncHandler(async (req, res, next) => {
-  const id = req.params.id;
-
-  const term = await AcademicTerm.findById(id);
-
-  res.status(201).json({
+  const term = await AcademicTerm.findById(req.params.id);
+  if (!term) {
+    return next(new ApiError("academic term not found", 404));
+  }
+  res.status(200).json({
     status: "success",
     message: "academic term fetched successfully",
     data: term,
@@ -48,24 +46,22 @@ exports.getAcademincTerm = asyncHandler(async (req, res, next) => {
 
 exports.updateAcademincTerm = asyncHandler(async (req, res, next) => {
   const { name, description, duration } = req.body;
-  // check if exists
-  const academicTerm = await AcademicTerm.findOne({ name });
+  const { id } = req.params;
+  // check if another term has the same name
+  const academicTerm = await AcademicTerm.findOne({ name, _id: { $ne: id } });
   if (academicTerm) {
-    return next(new ApiError("academic term already exists", 404));
+    return next(new ApiError("academic term already exists", 400));
   }
-  const id = req.params.id;
   const term = await AcademicTerm.findByIdAndUpdate(
     id,
-    {
-      name,
-      description,
-      duration,
-      createdBy: req.userAuth._id,
-    },
-    { new: true }
+    { name, description, duration },
+    { new: true, runValidators: true }
   );
+  if (!term) {
+    return next(new ApiError("academic term not found", 404));
+  }
 
-  res.status(201).json({
+  res.status(200).json({
     status: "success",
     message: "academic term update successfully",
     data: term,
@@ -73,11 +69,13 @@ exports.updateAcademincTerm = asyncHandler(async (req, res, next) => {
 });
 
 exports.deleteAcademincTerm = asyncHandler(async (req, res, next) => {
-  const id = req.params.id;
+  const term = await AcademicTerm.findByIdAndDelete(req.params.id);
+  if (!term) {
+    return next(new ApiError("academic term not found", 404));
+  }
+  await Admin.updateMany({}, { $pull: { academicTerms: term._id } });
 
-  const term = await AcademicTerm.findByIdAndDelete(id);
-
-  res.status(201).json({
+  res.status(200).json({
     status: "success",
     message: "academic term delete successfully",
   });

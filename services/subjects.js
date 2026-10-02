@@ -1,32 +1,31 @@
 const AysncHandler = require("express-async-handler");
-const Admin = require(".././models/Admin");
+const Admin = require("../models/Admin");
 const Subject = require("../models/Subject");
 const ApiError = require("../utils/apiError");
 
 //@desc  Create subject
 //@route POST /api/v1/subjects
 //@acess  Private
-
 exports.createSubject = AysncHandler(async (req, res, next) => {
-  const { name, day, classes, teacher } = req.body;
+  const { name, day, classes, teacher, academicTerm } = req.body;
   //check if exists
   const subjectFound = await Subject.findOne({ name });
   if (subjectFound) {
-    return next(new ApiError(" Subject  already exists", 404));
+    return next(new ApiError("Subject already exists", 400));
   }
   //create
   const subjectCreated = await Subject.create({
     name,
     day,
     classes,
-    teacher,
+    teacher: teacher || undefined,
+    academicTerm: academicTerm || undefined,
     createdBy: req.userAuth._id,
   });
-  //push class into admin
-  const admin = await Admin.findById(req.userAuth._id);
-  admin.subject.push(subjectCreated._id);
-  //save
-  await admin.save();
+  //push subject into admin
+  await Admin.findByIdAndUpdate(req.userAuth._id, {
+    $push: { subject: subjectCreated._id },
+  });
   res.status(201).json({
     status: "success",
     message: "Subject created successfully",
@@ -37,8 +36,7 @@ exports.createSubject = AysncHandler(async (req, res, next) => {
 //@desc  get all Subjects
 //@route GET /api/v1/subjects
 //@acess  Private
-
-exports.getSubjects = AysncHandler(async (req, res, next) => {
+exports.getSubjects = AysncHandler(async (req, res) => {
   res.status(200).json(res.results);
 });
 
@@ -47,7 +45,10 @@ exports.getSubjects = AysncHandler(async (req, res, next) => {
 //@acess  Private
 exports.getSubject = AysncHandler(async (req, res, next) => {
   const subject = await Subject.findById(req.params.id);
-  res.status(201).json({
+  if (!subject) {
+    return next(new ApiError("Subject not found", 404));
+  }
+  res.status(200).json({
     status: "success",
     message: "Subject fetched successfully",
     data: subject,
@@ -57,29 +58,30 @@ exports.getSubject = AysncHandler(async (req, res, next) => {
 //@desc   Update  Subject
 //@route  PUT /api/v1/subjects/:id
 //@acess  Private
-
 exports.updatSubject = AysncHandler(async (req, res, next) => {
-  const { name, description, academicTerm } = req.body;
-  //check name exists
-  const subjectFound = await Subject.findOne({ name });
+  const { name, day, classes, teacher, academicTerm } = req.body;
+  const { id } = req.params;
+  //check if another subject has the same name
+  const subjectFound = await Subject.findOne({ name, _id: { $ne: id } });
   if (subjectFound) {
-    return next(new ApiError(" Program already exists", 404));
+    return next(new ApiError("Subject already exists", 400));
   }
   const subject = await Subject.findByIdAndUpdate(
-    req.params.id,
+    id,
     {
       name,
       day,
-    classes,
-    teacher,
-      createdBy: req.userAuth._id,
+      classes,
+      teacher: teacher || undefined,
+      academicTerm: academicTerm || undefined,
     },
-    {
-      new: true,
-    }
+    { new: true, runValidators: true }
   );
+  if (!subject) {
+    return next(new ApiError("Subject not found", 404));
+  }
 
-  res.status(201).json({
+  res.status(200).json({
     status: "success",
     message: "subject  updated successfully",
     data: subject,
@@ -87,11 +89,15 @@ exports.updatSubject = AysncHandler(async (req, res, next) => {
 });
 
 //@desc   Delete  Subject
-//@route  PUT /api/v1/subjects/:id
+//@route  DELETE /api/v1/subjects/:id
 //@acess  Private
 exports.deleteSubject = AysncHandler(async (req, res, next) => {
-  await Subject.findByIdAndDelete(req.params.id);
-  res.status(201).json({
+  const subject = await Subject.findByIdAndDelete(req.params.id);
+  if (!subject) {
+    return next(new ApiError("Subject not found", 404));
+  }
+  await Admin.updateMany({}, { $pull: { subject: subject._id } });
+  res.status(200).json({
     status: "success",
     message: "subject deleted successfully",
   });

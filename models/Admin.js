@@ -97,7 +97,7 @@ const adminSchema = new mongoose.Schema(
     feesgroup: [
       {
         type: mongoose.Schema.Types.ObjectId,
-        ref: "Feesgroup",
+        ref: "FeesGroup",
       },
       
     ],
@@ -111,11 +111,19 @@ const adminSchema = new mongoose.Schema(
   },
   {
     timestamps: true,
+    // never send the password hash to the client
+    toJSON: {
+      transform: (doc, ret) => {
+        delete ret.password;
+        return ret;
+      },
+    },
   }
 );
 adminSchema.pre("save", async function (next) {
   if (!this.isModified("password")) {
-    next(); 
+    return next();
+
   } 
   //salt
   const salt = await bcrypt.genSalt(10);

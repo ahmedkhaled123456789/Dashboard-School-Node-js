@@ -7,11 +7,22 @@ const bcrypt = require("bcryptjs");
 const createToken = require("../utils/createToken");
 
 //@desc  Admin Register Parents
-//@route POST /api/Parents/admin/register
+//@route POST /api/v1/parents/admins/register
 //@acess  Private
-
-exports.adminRegisterParents = AysncHandler(async (req, res,next) => {
-  const { name, email, password,student, phone, address,occupation, religion,id } = req.body;
+exports.adminRegisterParents = AysncHandler(async (req, res, next) => {
+  const {
+    name,
+    email,
+    password,
+    student,
+    phone,
+    address,
+    occupation,
+    religion,
+  } = req.body;
+  if (!password) {
+    return next(new ApiError("Password is required", 400));
+  }
 
   //find the admin
   const adminFound = await Admin.findById(req.userAuth._id);
@@ -21,7 +32,7 @@ exports.adminRegisterParents = AysncHandler(async (req, res,next) => {
   //check if Parents already exists
   const parents = await Parents.findOne({ email });
   if (parents) {
-    return next(new ApiError("Parents already employed", 404));
+    return next(new ApiError("Parent already exists", 400));
   }
 
   // create
@@ -33,11 +44,12 @@ exports.adminRegisterParents = AysncHandler(async (req, res,next) => {
     occupation,
     religion,
     student,
-    password: await bcrypt.hash(req.body.password, 12),
+    password: await bcrypt.hash(password, 12),
   });
   //push Parents into admin
-  adminFound.parents.push(parentsCreated?._id);
-  await adminFound.save();
+  await Admin.findByIdAndUpdate(adminFound._id, {
+    $push: { parents: parentsCreated._id },
+  });
   //send Parents data
   res.status(201).json({
     status: "success",
@@ -47,43 +59,35 @@ exports.adminRegisterParents = AysncHandler(async (req, res,next) => {
 });
 
 //@desc    login a Parents
-//@route   POST /api/v1/Parents/login
+//@route   POST /api/v1/parents/login
 //@access  Public
-
 exports.loginParents = AysncHandler(async (req, res, next) => {
-  // 2) check if user exist & check if password is correct
-  const parents = await Parents.findOne({ email: req.body.email });
+  const { email, password } = req.body;
+  const parents = await Parents.findOne({ email });
 
-  if (
-    !parents ||
-    !(await bcrypt.compare(req.body.password, parents.password))
-  ) {
+  if (!parents || !(await bcrypt.compare(password || "", parents.password))) {
     return next(new ApiError("Incorrect email or password", 401));
   }
   res.status(200).json({
     status: "success",
     message: "Parents logged in successfully",
-    data: createToken(parents._id),
+    token: createToken(parents._id),
+    data: parents,
   });
 });
 
 //@desc    Get all Parents
-//@route   GET /api/v1/admin/Parents
+//@route   GET /api/v1/parents/admin
 //@access  Private admin only
-
-exports.getAllParentsAdmin = AysncHandler(async (req, res,next) => {
+exports.getAllParentsAdmin = AysncHandler(async (req, res) => {
   res.status(200).json(res.results);
-
 });
 
 //@desc    Get Single Parents
-//@route   GET /api/v1/Parents/:parentID/admin
+//@route   GET /api/v1/parents/:parentID/admin
 //@access  Private admin only
-
-exports.getParentsByAdmin = AysncHandler(async (req, res,next) => {
-  const parentID = req.params.parentID;
-  //find the Parents
-  const parents = await Parents.findById(parentID);
+exports.getParentsByAdmin = AysncHandler(async (req, res, next) => {
+  const parents = await Parents.findById(req.params.parentID);
   if (!parents) {
     return next(new ApiError("Parent not found", 404));
   }
@@ -95,10 +99,9 @@ exports.getParentsByAdmin = AysncHandler(async (req, res,next) => {
 });
 
 //@desc    Parent Profile
-//@route   GET /api/v1/Parents/profile
+//@route   GET /api/v1/parents/profile
 //@access  Private Parents only
-
-exports.getParentsProfile = AysncHandler(async (req, res) => {
+exports.getParentsProfile = AysncHandler(async (req, res, next) => {
   const parents = await Parents.findById(req.userAuth._id).select(
     "-password -createdAt -updatedAt"
   );
@@ -112,67 +115,53 @@ exports.getParentsProfile = AysncHandler(async (req, res) => {
   });
 });
 
- 
-
 //@desc     Admin updating Parents profile
-//@route    UPDATE /api/v1/Parents/:parentID/admin
+//@route    PUT /api/v1/parents/:parentID/admin
 //@access   Private Admin only
+exports.adminUpdateParents = AysncHandler(async (req, res, next) => {
+  const { parentID } = req.params;
 
-exports.adminUpdateParents = AysncHandler(async (req, res,next) => {
-  const { id } = req.params;
-
-  const { email, name, password, phone, address } = req.body;
-  //if email is taken
-  const emailExist = await Parents.findOne({ email });
-  if (emailExist) {
-    return next(new ApiError("This email is taken/exist"));
+  const { email, name, password, phone, address, occupation, religion, student } =
+    req.body;
+  //if email is taken by another parent
+  if (email) {
+    const emailExist = await Parents.findOne({ email, _id: { $ne: parentID } });
+    if (emailExist) {
+      return next(new ApiError("This email is taken/exist", 400));
+    }
   }
 
-  //hash password
+  const update = { email, name, phone, address, occupation, religion, student };
   //check if user is updating password
-
   if (password) {
-    //update
-    const parents = await Parents.findByIdAndUpdate(
-      id,
-      {
-        email,
-        password: await bcrypt.hash(req.body.password, 12),
-        name,
-        phone,
-        address,
-        occupation
-       },
-      {
-        new: true,
-        runValidators: true,
-      }
-    );
-    res.status(200).json({
-      status: "success",
-      data: parents,
-      message: "Parent updated successfully",
-    });
-  } else {
-    //update
-    const parents = await Parents.findByIdAndUpdate(
-      id,
-      {
-        email,
-        name,
-        phone,
-        occupation,
-        address,
-       },
-      {
-        new: true,
-        runValidators: true,
-      }
-    );
-    res.status(200).json({
-      status: "success",
-      data: parents,
-      message: "Parent updated successfully",
-    });
+    update.password = await bcrypt.hash(password, 12);
   }
+
+  const parents = await Parents.findByIdAndUpdate(parentID, update, {
+    new: true,
+    runValidators: true,
+  });
+  if (!parents) {
+    return next(new ApiError("Parent not found", 404));
+  }
+  res.status(200).json({
+    status: "success",
+    data: parents,
+    message: "Parent updated successfully",
+  });
+});
+
+//@desc     Admin deleting Parents
+//@route    DELETE /api/v1/parents/:parentID/admin
+//@access   Private Admin only
+exports.deleteParents = AysncHandler(async (req, res, next) => {
+  const parents = await Parents.findByIdAndDelete(req.params.parentID);
+  if (!parents) {
+    return next(new ApiError("Parent not found", 404));
+  }
+  await Admin.updateMany({}, { $pull: { parents: parents._id } });
+  res.status(200).json({
+    status: "success",
+    message: "Parent deleted successfully",
+  });
 });

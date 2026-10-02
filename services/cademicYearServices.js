@@ -4,24 +4,24 @@ const Admin = require("../models/Admin");
 const ApiError = require("../utils/apiError");
 
 exports.createAcademincYear = asyncHandler(async (req, res, next) => {
-  const { name, fromYear, toYear } = req.body;
+  const { name, fromYear, toYear, isCurrent } = req.body;
   // check if exists
   const academicYear = await AcademicYear.findOne({ name });
   if (academicYear) {
-    return next(new ApiError("academic year already exists", 404));
+    return next(new ApiError("academic year already exists", 400));
   }
   //craete
-
   const academicYearCreated = await AcademicYear.create({
     name,
     fromYear,
     toYear,
+    isCurrent,
     createdBy: req.userAuth._id,
   });
-// push academic year into admin
-const admin= await Admin.findById(req.userAuth._id);
-admin.academicYears.push(academicYearCreated._id)
-await admin.save();
+  // push academic year into admin
+  await Admin.findByIdAndUpdate(req.userAuth._id, {
+    $push: { academicYears: academicYearCreated._id },
+  });
   res.status(201).json({
     status: "success",
     message: "academic year created successfully",
@@ -29,18 +29,16 @@ await admin.save();
   });
 });
 
-exports.getAcademincYears = asyncHandler(async (req, res, next) => {
+exports.getAcademincYears = asyncHandler(async (req, res) => {
   res.status(200).json(res.results);
-
 });
 
 exports.getAcademincYear = asyncHandler(async (req, res, next) => {
-  
-  const id = req.params.id;
-
-  const academic = await AcademicYear.findById(id);
-
-  res.status(201).json({
+  const academic = await AcademicYear.findById(req.params.id);
+  if (!academic) {
+    return next(new ApiError("academic year not found", 404));
+  }
+  res.status(200).json({
     status: "success",
     message: "academic year fetched successfully",
     data: academic,
@@ -48,41 +46,38 @@ exports.getAcademincYear = asyncHandler(async (req, res, next) => {
 });
 
 exports.updateAcademincYear = asyncHandler(async (req, res, next) => {
-  const { name, fromYear, toYear } = req.body;
-  // check if exists
-  const academicYear = await AcademicYear.findOne({ name });
+  const { name, fromYear, toYear, isCurrent } = req.body;
+  const { id } = req.params;
+  // check if another year has the same name
+  const academicYear = await AcademicYear.findOne({ name, _id: { $ne: id } });
   if (academicYear) {
-    return next(new ApiError("academic year already exists", 404));
+    return next(new ApiError("academic year already exists", 400));
   }
-  const id = req.params.id;
   const academic = await AcademicYear.findByIdAndUpdate(
     id,
-    {
-      name,
-      fromYear,
-      toYear,
-      createdBy: req.userAuth._id,
-    },
-    { new: true }
+    { name, fromYear, toYear, isCurrent },
+    { new: true, runValidators: true }
   );
+  if (!academic) {
+    return next(new ApiError("academic year not found", 404));
+  }
 
-  res.status(201).json({
+  res.status(200).json({
     status: "success",
     message: "academic year update successfully",
     data: academic,
   });
 });
 
-
 exports.deleteAcademincYear = asyncHandler(async (req, res, next) => {
-  
-  const id = req.params.id;
+  const academic = await AcademicYear.findByIdAndDelete(req.params.id);
+  if (!academic) {
+    return next(new ApiError("academic year not found", 404));
+  }
+  await Admin.updateMany({}, { $pull: { academicYears: academic._id } });
 
-  const academic = await AcademicYear.findByIdAndDelete(id);
-
-  res.status(201).json({
+  res.status(200).json({
     status: "success",
     message: "academic year delete successfully",
-    
   });
 });

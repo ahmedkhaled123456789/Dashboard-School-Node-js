@@ -3,21 +3,26 @@ const isAdmin = require("../middlewares/isAdmin");
 const Program = require("../models/Program");
 const advancedResults = require("../middlewares/advancedResults");
 const { isLogin } = require("../middlewares/isLogin");
+const { protect, allowedTo } = require("../middlewares/auth");
 const {
-   createProgram,getProgram,getPrograms,updatProgram,deleteProgram
+  createProgram,
+  getPrograms,
+  getProgram,
+  updatProgram,
+  deleteProgram,
 } = require("../services/programs");
 
 const router = express.Router();
- router
+
+router
   .route("/")
   .post(isLogin, isAdmin, createProgram)
-  .get(isLogin, isAdmin,advancedResults(Program), getPrograms);
- 
+  .get(protect, allowedTo("admin", "teacher"), advancedResults(Program), getPrograms);
+
 router
   .route("/:id")
-  .get(isLogin, isAdmin, getProgram)
+  .get(protect, allowedTo("admin", "teacher"), getProgram)
   .put(isLogin, isAdmin, updatProgram)
   .delete(isLogin, isAdmin, deleteProgram);
- 
 
 module.exports = router;

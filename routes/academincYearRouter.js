@@ -3,6 +3,7 @@ const isAdmin = require("../middlewares/isAdmin");
 const AcademicYear = require("../models/AcademicYear");
 const advancedResults = require("../middlewares/advancedResults");
 const { isLogin } = require("../middlewares/isLogin");
+const { protect, allowedTo } = require("../middlewares/auth");
 const {
   createAcademincYear,
   getAcademincYears,
@@ -12,16 +13,16 @@ const {
 } = require("../services/cademicYearServices");
 
 const router = express.Router();
- router
+
+router
   .route("/")
   .post(isLogin, isAdmin, createAcademincYear)
-  .get(isLogin, isAdmin,advancedResults(AcademicYear), getAcademincYears);
- 
+  .get(protect, allowedTo("admin", "teacher"), advancedResults(AcademicYear), getAcademincYears);
+
 router
   .route("/:id")
-  .get(isLogin, isAdmin, getAcademincYear)
+  .get(protect, allowedTo("admin", "teacher"), getAcademincYear)
   .put(isLogin, isAdmin, updateAcademincYear)
   .delete(isLogin, isAdmin, deleteAcademincYear);
- 
 
 module.exports = router;

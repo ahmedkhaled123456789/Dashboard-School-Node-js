@@ -2,35 +2,31 @@ const express = require("express");
 const {
   registerAdminServices,
   loginAdminServices,
-   getAdminsServices,
+  getAdminsServices,
   updateAdminServices,
   deleteAdminServices,
   getAdminProfileServices,
 } = require("./../services/adminServices");
 const { isLogin } = require("../middlewares/isLogin");
 const isAdmin = require("../middlewares/isAdmin");
-  
-const router = express.Router();
 
-// routes
+const router = express.Router();
 
 //admin register
 router.post("/register", registerAdminServices);
-  
+
 //login
 router.post("/login", loginAdminServices);
 
 // get all admin
+router.get("/", isLogin, isAdmin, getAdminsServices);
 
-router.get("/", isLogin,getAdminsServices);
- 
 //profile
+router.get("/profile", isLogin, isAdmin, getAdminProfileServices);
 
-router.get("/profile", isLogin,isAdmin, getAdminProfileServices);
- 
 // update admin
-router.put("/:id",updateAdminServices);
+router.put("/:id", isLogin, isAdmin, updateAdminServices);
 // delete admin
-router.delete("/:id", deleteAdminServices);
-  
+router.delete("/:id", isLogin, isAdmin, deleteAdminServices);
+
 module.exports = router;

@@ -2,15 +2,16 @@ const Teacher = require("../models/Teacher");
 const ApiError = require("../utils/apiError");
 
 const isTeacher = async (req, res, next) => {
-  //find the user
-  const userId = req.userAuth._id;
-  const teacherFound = await Teacher.findById(userId);
-  //check if admin
-  if (teacherFound.role === "teacher") {
-    next();
-  } else {
-    
-    next(new ApiError("Access Denied, Teachers only"));
+  try {
+    //find the user
+    const teacherFound = await Teacher.findById(req.userAuth?._id);
+    //check if teacher
+    if (teacherFound?.role === "teacher") {
+      return next();
+    }
+    return next(new ApiError("Access Denied, Teachers only", 403));
+  } catch (err) {
+    return next(err);
   }
 };
 

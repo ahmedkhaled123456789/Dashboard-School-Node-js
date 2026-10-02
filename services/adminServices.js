@@ -13,7 +13,7 @@ exports.registerAdminServices = asyncHandler(async (req, res, next) => {
   //Check if email exists
   const adminFound = await Admin.findOne({ email });
   if (adminFound) {
-    return next(new ApiError("admin exist", 404));
+    return next(new ApiError("admin exist", 400));
   }
   //register 
   const user = await Admin.create({
@@ -49,7 +49,7 @@ exports.loginAdminServices = asyncHandler(async (req, res, next) => {
   // 3) generate token
   const token = createToken(user._id);
   // 4) send response to client side
-  res.status(200).json({ data: user, token });
+  res.status(200).json({ status: "success", data: user, token });
 });
 
 // @desc     get all admins
@@ -79,7 +79,7 @@ exports.getAdminProfileServices = asyncHandler(async (req, res) => {
     .populate("teachers")
     .populate("students");
   if (!admin) {
-    throw new ApiError("Admin Not Found");
+    throw new ApiError("Admin Not Found", 404);
   } else {
     res.status(200).json({
       status: "success",
@@ -94,64 +94,35 @@ exports.getAdminProfileServices = asyncHandler(async (req, res) => {
 exports.updateAdminServices = asyncHandler(async (req, res, next) => {
   const { id } = req.params;
 
-  const { email, name, password, phone, address, schoolName ,city,lauguage} = req.body;
-  //if email is taken
-  const emailExist = await Admin.findOne({ email });
-  if (emailExist) {
-    return next(new ApiError("This email is taken/exist"));
+  const { email, name, password, phone, address, schoolName, city, lauguage } =
+    req.body;
+  //if email is taken by another admin
+  if (email) {
+    const emailExist = await Admin.findOne({ email, _id: { $ne: id } });
+    if (emailExist) {
+      return next(new ApiError("This email is taken/exist", 400));
+    }
   }
 
-  //hash password
+  const update = { email, name, phone, address, schoolName, city, lauguage };
   //check if user is updating password
-
   if (password) {
-    //update
-    const admin = await Admin.findByIdAndUpdate(
-      id,
-      {
-        email,
-        password: await bcrypt.hash(req.body.password, 12),
-        name,
-        phone,
-        address,
-        schoolName,
-        city,lauguage
-      },
-      {
-        new: true,
-        runValidators: true,
-      }
-    );
-    res.status(200).json({
-      status: "success",
-      data: admin,
-      message: "Admin updated successfully",
-    });
-  } else {
-    //update
-    const admin = await Admin.findByIdAndUpdate(
-      id,
-      {
-        email,
-        name,
-        phone,
-        address,
-        schoolName,
-      },
-      {
-        new: true,
-        runValidators: true,
-      }
-    );
-    res.status(200).json({
-      status: "success",
-      data: admin,
-      message: "Admin updated successfully",
-    });
+    update.password = await bcrypt.hash(password, 12);
   }
-});
 
- 
+  const admin = await Admin.findByIdAndUpdate(id, update, {
+    new: true,
+    runValidators: true,
+  });
+  if (!admin) {
+    return next(new ApiError(`no admin for this id ${id}`, 404));
+  }
+  res.status(200).json({
+    status: "success",
+    data: admin,
+    message: "Admin updated successfully",
+  });
+});
 
 // @desc     delete admin
 // @route   delete /api/v1/admins/:id

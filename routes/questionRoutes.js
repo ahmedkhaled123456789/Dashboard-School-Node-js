@@ -1,7 +1,6 @@
 const express = require("express");
-const isAdmin = require("../middlewares/isAdmin");
+const { protect, allowedTo } = require("../middlewares/auth");
 const { isTeacherLogin } = require("../middlewares/isTeacherLogin");
-const { isLogin } = require("../middlewares/isLogin");
 const isTeacher = require("../middlewares/isTeacher");
 const Questions = require("../models/Questions");
 const advancedResults = require("../middlewares/advancedResults");
@@ -10,15 +9,26 @@ const {
   getQuestions,
   getQuestion,
   updatQuestion,
+  deleteQuestion,
+  setQuestionsFilter,
 } = require("../services/questionsServices");
 
 const router = express.Router();
-router.route("/").get(isLogin, isAdmin,advancedResults(Questions), getQuestions);
+// admin => all questions, teacher => his questions
+router
+  .route("/")
+  .get(
+    protect,
+    allowedTo("admin", "teacher"),
+    setQuestionsFilter,
+    advancedResults(Questions),
+    getQuestions
+  );
 router.route("/:examID").post(isTeacherLogin, isTeacher, createQuestion);
 router
   .route("/:id")
-  .get(isTeacherLogin, isTeacher, getQuestion)
-  .put(isTeacherLogin, isTeacher, updatQuestion);
+  .get(protect, allowedTo("admin", "teacher"), getQuestion)
+  .put(isTeacherLogin, isTeacher, updatQuestion)
+  .delete(isTeacherLogin, isTeacher, deleteQuestion);
 
 module.exports = router;
- 

@@ -1,15 +1,17 @@
 const Student = require("../models/Student");
- const ApiError = require("../utils/apiError");
+const ApiError = require("../utils/apiError");
 
 const isStdudent = async (req, res, next) => {
-  //find the user
-  const userId = req?.userAuth?._id;
-  const studentFound = await Student.findById(userId);
-  //check if student
-  if (studentFound?.role === "student") {
-    next();
-  } else {
-    next(new ApiError("Access Denied, student only"));
+  try {
+    //find the user
+    const studentFound = await Student.findById(req.userAuth?._id);
+    //check if student
+    if (studentFound?.role === "student") {
+      return next();
+    }
+    return next(new ApiError("Access Denied, student only", 403));
+  } catch (err) {
+    return next(err);
   }
 };
 

@@ -11,7 +11,8 @@ const {
   getAllParentsAdmin,
   getParentsByAdmin,
   getParentsProfile,
-   adminUpdateParents,
+  adminUpdateParents,
+  deleteParents,
 } = require("../services/parentsServices");
 
 const router = express.Router();
@@ -19,16 +20,16 @@ router.route("/admins/register").post(isLogin, isAdmin, adminRegisterParents);
 
 router.route("/login").post(loginParents);
 
-router.route("/admin").get(
-  isLogin,
-  isAdmin,
-  getAllParentsAdmin
-);
-router.route("/:parentID/admin").get(isLogin, isAdmin, getParentsByAdmin);
+router
+  .route("/admin")
+  .get(isLogin, isAdmin, advancedResults(Parents), getAllParentsAdmin);
+
 router.route("/profile").get(isParentLogin, isParent, getParentsProfile);
 
- 
-router.route("/:parentID/admin").put(isLogin, isAdmin, adminUpdateParents);
+router
+  .route("/:parentID/admin")
+  .get(isLogin, isAdmin, getParentsByAdmin)
+  .put(isLogin, isAdmin, adminUpdateParents)
+  .delete(isLogin, isAdmin, deleteParents);
 
 module.exports = router;
- 

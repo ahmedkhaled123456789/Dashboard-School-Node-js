@@ -4,14 +4,14 @@ const Admin = require("../models/Admin");
 const ApiError = require("../utils/apiError");
 
 //@desc  Create FeesGroup
-//@route POST /api/v1/FeesGroup 
+//@route POST /api/v1/feesGroup
 //@acess  Private
-exports.createFeesGroup = AysncHandler(async (req, res,next) => {
+exports.createFeesGroup = AysncHandler(async (req, res, next) => {
   const { name, description, feesType } = req.body;
   //check if exists
   const feesGroup = await FeesGroup.findOne({ name });
-  if (feesGroup) { 
-    return next(new ApiError("FeesGroup already exists", 404));
+  if (feesGroup) {
+    return next(new ApiError("FeesGroup already exists", 400));
   }
   //create
   const feesGroupCreated = await FeesGroup.create({
@@ -21,32 +21,33 @@ exports.createFeesGroup = AysncHandler(async (req, res,next) => {
     createdBy: req.userAuth._id,
   });
   //push FeesGroup into admin
-  const admin = await Admin.findById(req.userAuth._id);
-  admin.feesgroup.push(feesGroupCreated._id);
-  //save
-  await admin.save();
- 
+  await Admin.findByIdAndUpdate(req.userAuth._id, {
+    $push: { feesgroup: feesGroupCreated._id },
+  });
+
   res.status(201).json({
     status: "success",
-    message: "Fees Group successfully",
+    message: "Fees Group created successfully",
     data: feesGroupCreated,
   });
 });
 
 //@desc  get all FeesGroup
-//@route GET /api/v1/FeesGroup
+//@route GET /api/v1/feesGroup
 //@acess  Private
 exports.getAllFeesGroup = AysncHandler(async (req, res) => {
   res.status(200).json(res.results);
-
 });
 
 //@desc  get single FeesGroup
-//@route GET /api/v1/FeesGroup/:id
+//@route GET /api/v1/feesGroup/:id
 //@acess  Private
-exports.getFeesGroup = AysncHandler(async (req, res) => {
+exports.getFeesGroup = AysncHandler(async (req, res, next) => {
   const feesGroup = await FeesGroup.findById(req.params.id);
-  res.status(201).json({
+  if (!feesGroup) {
+    return next(new ApiError("FeesGroup not found", 404));
+  }
+  res.status(200).json({
     status: "success",
     message: "FeesGroup fetched successfully",
     data: feesGroup,
@@ -54,31 +55,26 @@ exports.getFeesGroup = AysncHandler(async (req, res) => {
 });
 
 //@desc   Update  FeesGroup
-//@route  PUT /api/v1/FeesGroup/:id
+//@route  PUT /api/v1/feesGroup/:id
 //@acess  Private
-
-exports.updateFeesGroup = AysncHandler(async (req, res,next) => {
-  const { name, description,feesType } = req.body;
-  //check name exists
-  const feesGroupFound = await FeesGroup.findOne({ name });
+exports.updateFeesGroup = AysncHandler(async (req, res, next) => {
+  const { name, description, feesType } = req.body;
+  const { id } = req.params;
+  //check if another group has the same name
+  const feesGroupFound = await FeesGroup.findOne({ name, _id: { $ne: id } });
   if (feesGroupFound) {
-     return next(new ApiError("FeesGroup already exists", 404));
-
+    return next(new ApiError("FeesGroup already exists", 400));
   }
   const feesGroup = await FeesGroup.findByIdAndUpdate(
-    req.params.id,
-    {
-      name,
-      description,
-      feesType,
-      createdBy: req.userAuth._id,
-    },
-    {
-      new: true,
-    }
+    id,
+    { name, description, feesType },
+    { new: true, runValidators: true }
   );
+  if (!feesGroup) {
+    return next(new ApiError("FeesGroup not found", 404));
+  }
 
-  res.status(201).json({
+  res.status(200).json({
     status: "success",
     message: "FeesGroup  updated successfully",
     data: feesGroup,
@@ -86,11 +82,15 @@ exports.updateFeesGroup = AysncHandler(async (req, res,next) => {
 });
 
 //@desc   Delete  FeesGroup
-//@route  PUT /api/v1/FeesGroup/:id
+//@route  DELETE /api/v1/feesGroup/:id
 //@acess  Private
-exports.deleteFeesGroup = AysncHandler(async (req, res) => {
-  await FeesGroup.findByIdAndDelete(req.params.id);
-  res.status(201).json({
+exports.deleteFeesGroup = AysncHandler(async (req, res, next) => {
+  const feesGroup = await FeesGroup.findByIdAndDelete(req.params.id);
+  if (!feesGroup) {
+    return next(new ApiError("FeesGroup not found", 404));
+  }
+  await Admin.updateMany({}, { $pull: { feesgroup: feesGroup._id } });
+  res.status(200).json({
     status: "success",
     message: "FeesGroup deleted successfully",
   });

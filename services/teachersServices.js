@@ -7,11 +7,23 @@ const bcrypt = require("bcryptjs");
 const createToken = require("../utils/createToken");
 
 //@desc  Admin Register Teacher
-//@route POST /api/teachers/admin/register
+//@route POST /api/v1/teachers/admins/register
 //@acess  Private
-
-exports.adminRegisterTeacher = AysncHandler(async (req, res,next) => {
-  const { name, email,classLevels, password,gender, phone, address, subject, religion } = req.body;
+exports.adminRegisterTeacher = AysncHandler(async (req, res, next) => {
+  const {
+    name,
+    email,
+    classLevels,
+    password,
+    gender,
+    phone,
+    address,
+    subject,
+    religion,
+  } = req.body;
+  if (!password) {
+    return next(new ApiError("Password is required", 400));
+  }
   //find the admin
   const adminFound = await Admin.findById(req.userAuth._id);
   if (!adminFound) {
@@ -20,7 +32,7 @@ exports.adminRegisterTeacher = AysncHandler(async (req, res,next) => {
   //check if teacher already exists
   const teacher = await Teacher.findOne({ email });
   if (teacher) {
-    return next(new ApiError("Teacher already employed", 404));
+    return next(new ApiError("Teacher already employed", 400));
   }
 
   // create
@@ -28,16 +40,18 @@ exports.adminRegisterTeacher = AysncHandler(async (req, res,next) => {
     name,
     email,
     phone,
-    address, 
-    subject,
+    address,
+    subject: subject || undefined,
     religion,
     gender,
     classLevels,
-    password: await bcrypt.hash(req.body.password, 12),
+    createdBy: adminFound._id,
+    password: await bcrypt.hash(password, 12),
   });
   //push teacher into admin
-  adminFound.teachers.push(teacherCreated?._id);
-  await adminFound.save();
+  await Admin.findByIdAndUpdate(adminFound._id, {
+    $push: { teachers: teacherCreated._id },
+  });
   //send teacher data
   res.status(201).json({
     status: "success",
@@ -49,40 +63,36 @@ exports.adminRegisterTeacher = AysncHandler(async (req, res,next) => {
 //@desc    login a teacher
 //@route   POST /api/v1/teachers/login
 //@access  Public
-
 exports.loginTeacher = AysncHandler(async (req, res, next) => {
-  // 2) check if user exist & check if password is correct
-  const teacher = await Teacher.findOne({ email: req.body.email });
+  const { email, password } = req.body;
+  const teacher = await Teacher.findOne({ email });
 
-  if (
-    !teacher ||
-    !(await bcrypt.compare(req.body.password, teacher.password))
-  ) {
+  if (!teacher || !(await bcrypt.compare(password || "", teacher.password))) {
     return next(new ApiError("Incorrect email or password", 401));
+  }
+  if (teacher.isWitdrawn) {
+    return next(new ApiError("Your account has been withdrawn", 403));
   }
   res.status(200).json({
     status: "success",
     message: "Teacher logged in successfully",
-    data: createToken(teacher._id),
+    token: createToken(teacher._id),
+    data: teacher,
   });
 });
 
 //@desc    Get all Teachers
-//@route   GET /api/v1/admin/teachers
+//@route   GET /api/v1/teachers/admin
 //@access  Private admin only
-
-exports.getAllTeachersAdmin = AysncHandler(async (req, res,next) => {
+exports.getAllTeachersAdmin = AysncHandler(async (req, res) => {
   res.status(200).json(res.results);
 });
 
 //@desc    Get Single Teacher
 //@route   GET /api/v1/teachers/:teacherID/admin
 //@access  Private admin only
-
-exports.getTeacherByAdmin = AysncHandler(async (req, res,next) => {
-  const teacherID = req.params.teacherID;
-  //find the teacher
-  const teacher = await Teacher.findById(teacherID);
+exports.getTeacherByAdmin = AysncHandler(async (req, res, next) => {
+  const teacher = await Teacher.findById(req.params.teacherID);
   if (!teacher) {
     return next(new ApiError("Teacher not found", 404));
   }
@@ -96,8 +106,7 @@ exports.getTeacherByAdmin = AysncHandler(async (req, res,next) => {
 //@desc    Teacher Profile
 //@route   GET /api/v1/teachers/profile
 //@access  Private Teacher only
-
-exports.getTeacherProfile = AysncHandler(async (req, res) => {
+exports.getTeacherProfile = AysncHandler(async (req, res, next) => {
   const teacher = await Teacher.findById(req.userAuth._id).select(
     "-password -createdAt -updatedAt"
   );
@@ -111,137 +120,130 @@ exports.getTeacherProfile = AysncHandler(async (req, res) => {
   });
 });
 
-//@desc    Teacher updating profile admin
-//@route    UPDATE /api/v1/teachers/:teacherID/update
-//@access   Private Teacher only
-
-exports.teacherUpdateProfile = AysncHandler(async (req, res) => {
-  const { email, name, password, phone, address, subject, religion } = req.body;
-  //if email is taken
- 
-  const emailExist = await Teacher.findOne({ email });
-  if (emailExist) {
-    return next(new ApiError("This email is taken/exist", 404));
+//@desc    Teacher updating his own profile
+//@route   PUT /api/v1/teachers/:teacherID/update
+//@access  Private Teacher only
+exports.teacherUpdateProfile = AysncHandler(async (req, res, next) => {
+  const { email, name, password, phone, address, religion } = req.body;
+  const teacherId = req.userAuth._id;
+  //if email is taken by another teacher
+  if (email) {
+    const emailExist = await Teacher.findOne({
+      email,
+      _id: { $ne: teacherId },
+    });
+    if (emailExist) {
+      return next(new ApiError("This email is taken/exist", 400));
+    }
   }
 
-  //hash password
+  const update = { email, name, phone, address, religion };
   //check if user is updating password
-
   if (password) {
-    //update
-    const teacher = await Teacher.findByIdAndUpdate(
-      req.userAuth._id,
-      {
-        email,
-        password: await bcrypt.hash(req.body.password, 12),
-        name,
-        phone,
-        address,
-        subject,
-        religion,
-      },
-      {
-        new: true,
-        runValidators: true,
-      }
-    );
-    res.status(200).json({
-      status: "success",
-      data: teacher,
-      message: "Teacher updated successfully",
-    });
-  } else {
-    //update
-    const teacher = await Teacher.findByIdAndUpdate(
-      req.userAuth._id,
-      {
-        email,
-        name,
-        phone,
-        address,
-        subject,
-        religion,
-      },
-      {
-        new: true,
-        runValidators: true,
-      }
-    );
-    res.status(200).json({
-      status: "success",
-      data: teacher,
-      message: "Teacher updated successfully",
-    });
+    update.password = await bcrypt.hash(password, 12);
   }
+
+  const teacher = await Teacher.findByIdAndUpdate(teacherId, update, {
+    new: true,
+    runValidators: true,
+  });
+  res.status(200).json({
+    status: "success",
+    data: teacher,
+    message: "Teacher updated successfully",
+  });
 });
 
-//@desc     Admin updating Teacher profile
-//@route    UPDATE /api/v1/teachers/:teacherID/admin
+//@desc     Admin updating Teacher profile / assigning program, class, year, subject
+//@route    PUT /api/v1/teachers/:teacherID/admin
 //@access   Private Admin only
+exports.adminUpdateTeacher = AysncHandler(async (req, res, next) => {
+  const {
+    name,
+    email,
+    password,
+    gender,
+    phone,
+    address,
+    religion,
+    subject,
+    classLevels,
+    classLevel,
+    program,
+    academicYear,
+    academicTerm,
+    isSuspended,
+    isWitdrawn,
+    applicationStatus,
+  } = req.body;
+  const { teacherID } = req.params;
 
-exports.adminUpdateTeacher = AysncHandler(async (req, res,next) => {
-  const { program, classLevel, academicYear, subject } = req.body;
-  //if email is taken
-  const teacherFound = await Teacher.findById(req.params.teacherID);
+  const teacherFound = await Teacher.findById(teacherID);
   if (!teacherFound) {
     return next(new ApiError("Teacher not found", 404));
   }
-  //Check if teacher is withdrawn
-  if (teacherFound.isWitdrawn) {
-    return next(new ApiError("Action denied, teacher is withdraw", 404));
+  //Check if teacher is withdrawn (allow re-activating him only)
+  if (teacherFound.isWitdrawn && isWitdrawn !== false) {
+    return next(new ApiError("Action denied, teacher is withdraw", 400));
   }
-  //assign a program
-  if (program) {
-    teacherFound.program = program;
-    await teacherFound.save();
-    res.status(200).json({
-      status: "success",
-      data: teacherFound,
-      message: "Teacher updated successfully",
-    });
+  //if email is taken by another teacher
+  if (email) {
+    const emailExist = await Teacher.findOne({ email, _id: { $ne: teacherID } });
+    if (emailExist) {
+      return next(new ApiError("This email is taken/exist", 400));
+    }
   }
 
-  //assign Class level
-  if (classLevel) {
-    teacherFound.classLevel = classLevel;
-    await teacherFound.save();
-    res.status(200).json({
-      status: "success",
-      data: teacherFound,
-      message: "Teacher updated successfully",
-    });
+  const update = {
+    name,
+    email,
+    gender,
+    phone,
+    address,
+    religion,
+    subject: subject || undefined,
+    program,
+    academicYear,
+    academicTerm,
+    isSuspended,
+    isWitdrawn,
+    applicationStatus,
+  };
+  if (password) {
+    update.password = await bcrypt.hash(password, 12);
+  }
+  if (Array.isArray(classLevels)) {
+    update.classLevels = classLevels;
   }
 
-  //assign Academic year
-  if (academicYear) {
-    teacherFound.academicYear = academicYear;
-    await teacherFound.save();
-    res.status(200).json({
-      status: "success",
-      data: teacherFound,
-      message: "Teacher updated successfully",
-    });
+  const query = { $set: update };
+  // assign a single class level (kept for the old "classLevel" field)
+  if (classLevel && !Array.isArray(classLevels)) {
+    query.$addToSet = { classLevels: classLevel };
   }
 
-  //assign subject
-  if (subject) {
-    teacherFound.subject = subject;
-    await teacherFound.save();
-    res.status(200).json({
-      status: "success",
-      data: teacherFound,
-      message: "Teacher updated successfully",
-    });
-  }
+  const teacher = await Teacher.findByIdAndUpdate(teacherID, query, {
+    new: true,
+    runValidators: true,
+  });
+
+  res.status(200).json({
+    status: "success",
+    data: teacher,
+    message: "Teacher updated successfully",
+  });
 });
 
-
-
 //@desc   Delete  Teacher
- //@acess  Private
- exports.deleteTeacher = AysncHandler(async (req, res) => {
-  await Teacher.findOneAndDelete(req.params.id);
-  res.status(201).json({
+//@route  DELETE /api/v1/teachers/:teacherID/admin
+//@acess  Private admin only
+exports.deleteTeacher = AysncHandler(async (req, res, next) => {
+  const teacher = await Teacher.findByIdAndDelete(req.params.teacherID);
+  if (!teacher) {
+    return next(new ApiError("Teacher not found", 404));
+  }
+  await Admin.updateMany({}, { $pull: { teachers: teacher._id } });
+  res.status(200).json({
     status: "success",
     message: "Teacher deleted successfully",
   });

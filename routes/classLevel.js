@@ -3,24 +3,26 @@ const isAdmin = require("../middlewares/isAdmin");
 const ClassLevel = require("../models/ClassLevel");
 const advancedResults = require("../middlewares/advancedResults");
 const { isLogin } = require("../middlewares/isLogin");
+const { protect, allowedTo } = require("../middlewares/auth");
 const {
-   createClassLevel,getClassLevel,getClassLevels,updateclassLevel,deleteClassLevel
+  createClassLevel,
+  getClassLevels,
+  getClassLevel,
+  updateclassLevel,
+  deleteClassLevel,
 } = require("../services/classLevel");
-const student = require("./student");
 
 const router = express.Router();
-router.use("/:id/students", student);
- 
- router
+
+router
   .route("/")
   .post(isLogin, isAdmin, createClassLevel)
-  .get(isLogin, isAdmin,advancedResults(ClassLevel), getClassLevels);
- 
+  .get(protect, allowedTo("admin", "teacher"), advancedResults(ClassLevel), getClassLevels);
+
 router
   .route("/:id")
-  .get(isLogin, isAdmin, getClassLevel)
+  .get(protect, allowedTo("admin", "teacher"), getClassLevel)
   .put(isLogin, isAdmin, updateclassLevel)
   .delete(isLogin, isAdmin, deleteClassLevel);
- 
 
 module.exports = router;

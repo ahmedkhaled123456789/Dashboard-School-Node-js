@@ -3,15 +3,17 @@ const isAdmin = require("../middlewares/isAdmin");
 const FeesGroup = require("../models/FeesGroup");
 const advancedResults = require("../middlewares/advancedResults");
 const { isLogin } = require("../middlewares/isLogin");
+
 const {
   createFeesGroup,
-  getFeesGroup,
   getAllFeesGroup,
+  getFeesGroup,
   updateFeesGroup,
   deleteFeesGroup,
 } = require("../services/feesGroup");
 
 const router = express.Router();
+
 router
   .route("/")
   .post(isLogin, isAdmin, createFeesGroup)

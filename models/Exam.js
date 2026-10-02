@@ -11,7 +11,7 @@ const examSchema = new Schema(
     },
     description: {
       type: String,
-      required: true,
+      default: "",
     },
     subject: {
       type: Schema.Types.ObjectId,
@@ -39,11 +39,11 @@ const examSchema = new Schema(
     examDate: {
       type: Date,
       required: true,
-      default: new Date(),
+      default: Date.now,
     },
     examTime: {
       type: String,
-      required: true,
+      default: "",
     },
     examType: {
       type: String,
@@ -71,6 +71,18 @@ const examSchema = new Schema(
       type: Schema.Types.ObjectId,
       ref: "Teacher",
       required: true,
+    },
+    program: {
+      type: Schema.Types.ObjectId,
+      ref: "Program",
+    },
+    academicTerm: {
+      type: Schema.Types.ObjectId,
+      ref: "AcademicTerm",
+    },
+    academicYear: {
+      type: Schema.Types.ObjectId,
+      ref: "AcademicYear",
     }, 
      
   },

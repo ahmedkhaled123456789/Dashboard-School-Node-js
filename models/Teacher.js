@@ -104,6 +104,13 @@ const teacherSchema = new mongoose.Schema(
   },
   {
     timestamps: true,
+    // never send the password hash to the client
+    toJSON: {
+      transform: (doc, ret) => {
+        delete ret.password;
+        return ret;
+      },
+    },
   }
 );
 // Mongoose query middleware

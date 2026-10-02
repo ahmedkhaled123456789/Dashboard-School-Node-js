@@ -30,7 +30,7 @@ const parentsSchema = new mongoose.Schema(
       },
     },
      phone: {
-      type: Number,
+      type: String,
       required: true,
     },
     religion: {
@@ -61,6 +61,13 @@ const parentsSchema = new mongoose.Schema(
   },
   {
     timestamps: true,
+    // never send the password hash to the client
+    toJSON: {
+      transform: (doc, ret) => {
+        delete ret.password;
+        return ret;
+      },
+    },
   }
 );
 // Mongoose query middleware

@@ -1,28 +1,43 @@
 const AysncHandler = require("express-async-handler");
-const Exam = require(".././models/Exam");
-const Question = require(".././models/Questions");
+const Exam = require("../models/Exam");
+const Question = require("../models/Questions");
 const ApiError = require("../utils/apiError");
+
+const isOwner = (user, doc) => String(doc.createdBy) === String(user._id);
+
+//@desc  Scope GET /questions by role (teacher => his questions only)
+exports.setQuestionsFilter = (req, res, next) => {
+  if (req.userAuth.role === "teacher") {
+    req.filter = { createdBy: req.userAuth._id };
+  }
+  next();
+};
 
 //@desc  Create Question
 //@route POST /api/v1/questions/:examID
 //@acess Private  Teachers only
-
-exports.createQuestion = AysncHandler(async (req, res,next) => {
+exports.createQuestion = AysncHandler(async (req, res, next) => {
   const { question, optionA, optionB, optionC, optionD, correctAnswer } =
-    req.body; 
+    req.body;
   //find the exam
-  const examFound = await Exam.findById(req.params.examID);
+  const examFound = await Exam.findById(req.params.examID).populate(
+    "questions",
+    "question"
+  );
   if (!examFound) {
     return next(new ApiError("Exam not found", 404));
-
-   }
-  //check if question
-  const questionExists = await Question.findOne({ question });
-  if (questionExists) {
-     return next(new ApiError("Question already exists", 404));
-
   }
-  //create exam
+  if (!isOwner(req.userAuth, examFound)) {
+    return next(new ApiError("You can only add questions to your exams", 403));
+  }
+  //check if the question already exists in this exam
+  const questionExists = examFound.questions.some(
+    (item) => item.question === question
+  );
+  if (questionExists) {
+    return next(new ApiError("Question already exists in this exam", 400));
+  }
+  //create question
   const questionCreated = await Question.create({
     question,
     optionA,
@@ -33,9 +48,9 @@ exports.createQuestion = AysncHandler(async (req, res,next) => {
     createdBy: req.userAuth._id,
   });
   //add the question into exam
-  examFound.questions.push(questionCreated._id);
-  //save
-  await examFound.save();
+  await Exam.findByIdAndUpdate(examFound._id, {
+    $push: { questions: questionCreated._id },
+  });
   res.status(201).json({
     status: "success",
     message: "Question created",
@@ -45,19 +60,23 @@ exports.createQuestion = AysncHandler(async (req, res,next) => {
 
 //@desc  get all questions
 //@route GET /api/v1/questions
-//@acess  Private - Teacher only
-
+//@acess  Private - admin / teacher
 exports.getQuestions = AysncHandler(async (req, res) => {
   res.status(200).json(res.results);
-
 });
 
 //@desc  get single Question
 //@route GET /api/v1/questions/:id
 //@acess  Private
-exports.getQuestion = AysncHandler(async (req, res) => {
+exports.getQuestion = AysncHandler(async (req, res, next) => {
   const question = await Question.findById(req.params.id);
-  res.status(201).json({
+  if (!question) {
+    return next(new ApiError("Question not found", 404));
+  }
+  if (req.userAuth.role !== "admin" && !isOwner(req.userAuth, question)) {
+    return next(new ApiError("You are not allowed to view this question", 403));
+  }
+  res.status(200).json({
     status: "success",
     message: "Question fetched successfully",
     data: question,
@@ -67,34 +86,47 @@ exports.getQuestion = AysncHandler(async (req, res) => {
 //@desc   Update  Question
 //@route  PUT /api/v1/questions/:id
 //@acess  Private Teacher only
-
-exports.updatQuestion = AysncHandler(async (req, res,next) => {
+exports.updatQuestion = AysncHandler(async (req, res, next) => {
   const { question, optionA, optionB, optionC, optionD, correctAnswer } =
     req.body;
-  //check name exists
-  const questionFound = await Question.findOne({ question });
-  if (questionFound) {
-    return next(new ApiError("Question already exists", 404));
+  const questionFound = await Question.findById(req.params.id);
+  if (!questionFound) {
+    return next(new ApiError("Question not found", 404));
   }
-  const program = await Question.findByIdAndUpdate(
+  if (!isOwner(req.userAuth, questionFound)) {
+    return next(new ApiError("You can only edit your questions", 403));
+  }
+  const updated = await Question.findByIdAndUpdate(
     req.params.id,
-    {
-      question,
-      optionA,
-      optionB,
-      optionC,
-      optionD,
-      correctAnswer,
-      createdBy: req.userAuth._id,
-    },
-    {
-      new: true,
-    }
+    { question, optionA, optionB, optionC, optionD, correctAnswer },
+    { new: true, runValidators: true }
   );
 
-  res.status(201).json({
+  res.status(200).json({
     status: "success",
     message: "Question  updated successfully",
-    data: program,
+    data: updated,
+  });
+});
+
+//@desc   Delete  Question (and remove it from its exam)
+//@route  DELETE /api/v1/questions/:id
+//@acess  Private Teacher only
+exports.deleteQuestion = AysncHandler(async (req, res, next) => {
+  const questionFound = await Question.findById(req.params.id);
+  if (!questionFound) {
+    return next(new ApiError("Question not found", 404));
+  }
+  if (!isOwner(req.userAuth, questionFound)) {
+    return next(new ApiError("You can only delete your questions", 403));
+  }
+  await Exam.updateMany(
+    { questions: questionFound._id },
+    { $pull: { questions: questionFound._id } }
+  );
+  await questionFound.deleteOne();
+  res.status(200).json({
+    status: "success",
+    message: "Question deleted successfully",
   });
 });

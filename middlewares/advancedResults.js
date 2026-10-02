@@ -1,73 +1,69 @@
 //model,populate
+// Optional `req.filter` (set by a previous middleware) scopes the query,
+// e.g. a teacher only sees his own exams.
 
-const advancedResults = (model, populate) => {
-  return async (req, res, next) => {  
-    console.log(req.res);
-    let TeachersQuery = model.find();
-    //convert query strings to number
-    const page = Number(req.query.page) || 1;
-    const limit = Number(req.query.limit) || 5;
-    const skip = (page - 1) * limit;
-    const total = await model.countDocuments();
-    const startIndex = (page - 1) * limit;
-    const endIndex = page * limit;
+const advancedResults = (model, populate, select = "-password") => {
+  return async (req, res, next) => {
+    try {
+      //Filtering/searching
+      const filter = { ...(req.filter || {}) };
 
-    //populate
-    if (populate) {
-      TeachersQuery = TeachersQuery.populate(populate);
-    }
+      if (req.query.name) {
+        filter.name = { $regex: req.query.name, $options: "i" };
+      }
 
-    //Filtering/searching
+      if (req.query.status) {
+        filter.status = req.query.status;
+      }
 
-    if (req.query.name) {
-      TeachersQuery = TeachersQuery.find({
-        name: { $regex: req.query.name, $options: "i" },
- 
-      });
-    }
+      //convert query strings to number
+      //no limit => return every document (dropdowns need the full list)
+      const page = Math.max(Number(req.query.page) || 1, 1);
+      const limit = Number(req.query.limit) || 0;
+      const skip = limit ? (page - 1) * limit : 0;
 
-    if (req.query.status) {
-      TeachersQuery = TeachersQuery.find({
-        status:req.query.status 
- 
-      });
-      console.log(req.query.status) 
+      const total = await model.countDocuments(filter);
 
-    }
-       
-    //pagination results
-    const pagination = {};
-    //add next
-    if (endIndex < total) {
-      pagination.pageCount= Math.ceil(total / limit);
-      pagination.next = {
-        page: page + 1,
-        limit, 
-        pageCount: Math.ceil(total / limit),
+      let query = model.find(filter).select(select).sort("-createdAt");
+      //populate
+      if (populate) {
+        query = query.populate(populate);
+      }
+      if (limit) {
+        query = query.skip(skip).limit(limit);
+      }
+
+      const docs = await query;
+
+      //pagination results
+      const pagination = {};
+      if (limit) {
+        pagination.pageCount = Math.ceil(total / limit);
+        //add next
+        if (page * limit < total) {
+          pagination.next = { page: page + 1, limit };
+        }
+        //add prev
+        if (skip > 0) {
+          pagination.prev = { page: page - 1, limit };
+        }
+      }
+
+      res.results = {
+        total,
+        pagination,
+        next: pagination.next,
+        previous: pagination.prev,
+        results: docs.length,
+        status: "success",
+        message: "Data fetched successfully",
+        data: docs,
       };
+
+      next();
+    } catch (err) {
+      next(err);
     }
-
-    //add prev
-    if (startIndex > 0) {
-      pagination.prev = {
-        page: page - 1, 
-        limit,
-      }; 
-    } 
-
-    // //Execute query
-    const teachers = await TeachersQuery.find().skip(skip).limit(limit);
-
-    res.results = {
-      total,
-      pagination,
-      results: teachers.length,
-      status: "success",
-      message: "Teachers fetched successfully",
-      data: teachers,
-    };
-
-    next();
   };
 };
 

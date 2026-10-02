@@ -21,28 +21,20 @@ router.route("/admins/register").post(isLogin, isAdmin, adminRegisterTeacher);
 
 router.route("/login").post(loginTeacher);
 
-router.route("/admin").get(
-  isLogin,
-  isAdmin,
-  advancedResults(Teacher
-  //   , {
-  //   path: "examsCreated", 
-  //   populate: {
-  //     path: "questions",
-  //   },
-  // }
-),
-  getAllTeachersAdmin
-);
-router.route("/:teacherID/admin").get(isLogin, isAdmin, getTeacherByAdmin);
+router
+  .route("/admin")
+  .get(isLogin, isAdmin, advancedResults(Teacher), getAllTeachersAdmin);
+
 router.route("/profile").get(isTeacherLogin, isTeacher, getTeacherProfile);
 
 router
   .route("/:teacherID/update")
   .put(isTeacherLogin, isTeacher, teacherUpdateProfile);
 
-router.route("/:teacherID/admin").put(isLogin, isAdmin, adminUpdateTeacher)
-.delete(deleteTeacher);
+router
+  .route("/:teacherID/admin")
+  .get(isLogin, isAdmin, getTeacherByAdmin)
+  .put(isLogin, isAdmin, adminUpdateTeacher)
+  .delete(isLogin, isAdmin, deleteTeacher);
 
 module.exports = router;
- 
